@@ -9,7 +9,6 @@ import SavedSheet from './SavedSheet';
 const MODES: { label: string; value: AppMode; pro?: boolean }[] = [
   { label: 'Scales', value: 'scales' },
   { label: 'Chords', value: 'chords' },
-  { label: 'Custom', value: 'custom', pro: true },
 ];
 
 function SegmentedControl({
@@ -109,9 +108,7 @@ export default function TopBar() {
 
   const titleSubject = mode === 'chords'
     ? `${NOTES[root]} ${chordKey}`
-    : mode === 'custom'
-      ? `${NOTES[root]} Custom`
-      : `${NOTES[root]} ${scaleKey}`;
+    : `${NOTES[root]} ${scaleKey}`;
 
   return (
     <View style={styles.wrap}>

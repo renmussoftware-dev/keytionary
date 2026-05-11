@@ -58,8 +58,6 @@ WHAT'S INSIDE
 
 • 22 Chord Progressions — Named progressions across pop, rock, blues, jazz, R&B, folk, and modal styles. Hit Play and hear real piano audio while the keyboard cycles through each chord at your BPM. Stack your own custom progressions too.
 
-• Custom Mode — Tap any combination of keys to highlight your own voicing. Build chords by ear, design scales from scratch, or experiment outside the boundaries of standard theory.
-
 • Real Piano Audio — Tap any chord in the library to hear it. The progression player arpeggiates subtly so the voicing rings clear.
 
 • Built-in Metronome — BPM 40–240, six time signatures (including 6/8 and 7/8), accent + offbeat clicks, tap-tempo, and a drift-corrected timer that stays steady at high tempos.
@@ -72,7 +70,7 @@ FREE vs PRO
 
 The free tier covers the essentials: interactive keyboard, 4 core scales (Major, Natural Minor, Pentatonic Minor, Blues), 8 core chord types, 4 starter progressions, smart resolution hints, and favorites/recents. Use it as long as you want — no account required.
 
-Pro unlocks everything: all 14 scales, the full chord library (35 types), all 22 progressions, custom mode, real piano audio playback, and the built-in metronome.
+Pro unlocks everything: all 14 scales, the full chord library (35 types), all 22 progressions, real piano audio playback, and the built-in metronome.
 
   Monthly — $5.99
   Annual — $29.99 (save 58% vs monthly)
@@ -107,7 +105,7 @@ What's new in v1.0:
 • 14 scales and modes
 • 35 chord types from triads to 13ths
 • 22 named chord progressions across genres
-• Custom mode for building any voicing by tapping keys
+• Custom progression builder
 • Real piano audio
 • Built-in metronome
 • Smart resolution hints showing where every chord likes to resolve

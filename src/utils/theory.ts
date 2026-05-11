@@ -48,10 +48,6 @@ export function noteLabel(
       const pos = ch?.intervals.map(i => i % 12).indexOf(intv) ?? -1;
       return pos >= 0 ? ch.intervalNames[pos] : NOTES[noteIdx];
     }
-    if (mode === 'custom') {
-      const names = ['R','♭2','2','♭3','3','4','♭5','5','♭6','6','♭7','7'];
-      return names[intv];
-    }
     const sc = SCALES[scaleKey];
     const scNotes = getScaleNotes(root, scaleKey);
     const pos = scNotes.indexOf(noteIdx);

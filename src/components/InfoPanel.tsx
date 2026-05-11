@@ -5,14 +5,11 @@ import { NOTES, SCALES, CHORDS } from '../constants/music';
 import { useStore } from '../store/useStore';
 import { getScaleNotes, getChordNotes } from '../utils/theory';
 
-const INTERVAL_NAMES = ['R','♭2','2','♭3','3','4','♭5','5','♭6','6','♭7','7'];
-
 export default function InfoPanel() {
-  const { root, scaleKey, chordKey, mode, customNotes } = useStore();
+  const { root, scaleKey, chordKey, mode } = useStore();
 
   let notes: number[];
   if (mode === 'chords') notes = getChordNotes(root, chordKey);
-  else if (mode === 'custom') notes = customNotes;
   else notes = getScaleNotes(root, scaleKey);
 
   const notesStr = notes.length > 0 ? notes.map(n => NOTES[n]).join(' ') : '—';
@@ -34,16 +31,6 @@ export default function InfoPanel() {
     degrees = ch?.description || '—';
     formulaLabel = 'Intervals';
     degreesLabel = 'About';
-  } else if (mode === 'custom') {
-    formula = customNotes.length > 0
-      ? customNotes.map(n => INTERVAL_NAMES[(n - root + 12) % 12]).join(' ')
-      : '—';
-    degrees = `${customNotes.length} note${customNotes.length === 1 ? '' : 's'}`;
-    formulaLabel = 'Intervals';
-    degreesLabel = 'Count';
-    description = customNotes.length === 0
-      ? 'Tap notes below to build your own scale or chord shape.'
-      : `Custom selection in ${NOTES[root]}`;
   }
 
   return (

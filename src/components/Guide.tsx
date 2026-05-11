@@ -21,13 +21,12 @@ interface Section {
 const SECTIONS: Section[] = [
   {
     title: 'Keyboard',
-    intro: 'The interactive piano — switch between scales, chords and custom modes. Color-coded by interval (root / 3rd / 5th / extension).',
+    intro: 'The interactive piano — switch between scales and chords. Color-coded by interval (root / 3rd / 5th / extension).',
     navTo: '/',
     navLabel: 'Open Keyboard',
     features: [
       { name: 'Scales mode',  desc: '14 scales — Major, all 7 modes, pentatonics, blues, harmonic/melodic minor, whole-tone, diminished.', badge: 'mixed' },
       { name: 'Chords mode',  desc: 'Light up any of 35 chord types across the keys.', badge: 'mixed' },
-      { name: 'Custom mode',  desc: 'Tap notes to highlight any combination on the keyboard.', badge: 'pro' },
       { name: 'Note labels',  desc: 'Toggle between note name, scale degree, interval, or no label.', badge: 'free' },
     ],
   },

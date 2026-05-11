@@ -44,13 +44,12 @@ export default function Piano() {
   const SVG_W = LEFT_PAD * 2 + totalWhite * whiteKeyW;
   const SVG_H = TOP_PAD + whiteKeyH + 24;
 
-  const { root, scaleKey, chordKey, mode, labelMode, customNotes } = useStore();
+  const { root, scaleKey, chordKey, mode, labelMode } = useStore();
 
   const activeNotes = useMemo(() => {
     if (mode === 'chords') return getChordNotes(root, chordKey);
-    if (mode === 'custom') return customNotes;
     return getScaleNotes(root, scaleKey);
-  }, [root, scaleKey, chordKey, mode, customNotes]);
+  }, [root, scaleKey, chordKey, mode]);
 
   function getNoteColor(noteIdx: number) {
     if (!activeNotes.includes(noteIdx)) return null;
@@ -78,12 +77,6 @@ export default function Piano() {
         if (pos === 4) return { ...MUSIC_COLORS.fifth,     isRoot: false };
         if (pos >= 6) return { ...MUSIC_COLORS.extension, isRoot: false };
       }
-    }
-
-    if (mode === 'custom') {
-      if (intv === 3 || intv === 4)   return { ...MUSIC_COLORS.third,     isRoot: false };
-      if (intv === 7)                 return { ...MUSIC_COLORS.fifth,     isRoot: false };
-      if (intv === 10 || intv === 11) return { ...MUSIC_COLORS.extension, isRoot: false };
     }
 
     return { ...MUSIC_COLORS.scaleTone, isRoot: false };

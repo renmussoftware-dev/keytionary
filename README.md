@@ -77,7 +77,6 @@ keytionary/
 ### Keyboard tab
 - **Scales mode** — 14 scales (major, all 7 modes, pentatonic major/minor, blues, harmonic minor, melodic minor, whole tone, diminished)
 - **Chords mode** — 30+ chord types
-- **Custom mode** — tap-to-highlight any combination of notes
 - Color-coded notes: root (yellow), 3rd (red), 5th (green), extensions (blue), scale tones (gray)
 - Note labels switchable: note name / scale degree / interval / none
 

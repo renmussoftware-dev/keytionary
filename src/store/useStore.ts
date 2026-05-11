@@ -8,7 +8,7 @@ const REVIEW_MIN_ACTIONS = 3;
 const REVIEW_MIN_DAYS_INSTALLED = 2;
 const REVIEW_MIN_DAYS_SINCE_LAST = 60;
 
-export type AppMode = 'scales' | 'chords' | 'custom';
+export type AppMode = 'scales' | 'chords';
 export type LabelMode = 'name' | 'degree' | 'interval' | 'none';
 
 export type SavedItem =
@@ -36,7 +36,6 @@ interface AppState {
   mode: AppMode;
   labelMode: LabelMode;
   isPro: boolean;
-  customNotes: number[];
 
   favorites: SavedItem[];
   recents: SavedItem[];
@@ -55,9 +54,6 @@ interface AppState {
   setMode: (m: AppMode) => void;
   setLabelMode: (l: LabelMode) => void;
   setIsPro: (v: boolean) => void;
-  toggleCustomNote: (n: number) => void;
-  clearCustomNotes: () => void;
-  setCustomNotes: (notes: number[]) => void;
 
   toggleFavorite: (item: SavedItemInput) => void;
   isFavorite: (item: SavedItemInput) => boolean;
@@ -74,7 +70,6 @@ export const useStore = create<AppState>()(
       mode: 'scales',
       labelMode: 'name',
       isPro: false,
-      customNotes: [],
 
       favorites: [],
       recents: [],
@@ -118,16 +113,6 @@ export const useStore = create<AppState>()(
       setLabelMode: (labelMode) => set({ labelMode }),
       setIsPro: (isPro) => set({ isPro }),
 
-      toggleCustomNote: (n) => {
-        const current = get().customNotes;
-        const next = current.includes(n)
-          ? current.filter(x => x !== n)
-          : [...current, n].sort((a, b) => a - b);
-        set({ customNotes: next });
-      },
-      clearCustomNotes: () => set({ customNotes: [] }),
-      setCustomNotes: (customNotes) => set({ customNotes }),
-
       toggleFavorite: (item) => {
         const k = itemKey(item);
         const current = get().favorites;
@@ -160,7 +145,6 @@ export const useStore = create<AppState>()(
       partialize: (s) => ({
         favorites: s.favorites,
         recents: s.recents,
-        customNotes: s.customNotes,
         installedAt: s.installedAt,
         positiveActionCount: s.positiveActionCount,
         lastPromptedAt: s.lastPromptedAt,
