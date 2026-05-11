@@ -45,7 +45,7 @@ export default function ChordsScreen() {
   useEffect(() => {
     if (pendingNav?.kind === 'chord') {
       setSelectedChord(pendingNav.chordKey);
-      setSelectedInversion(0);
+      setSelectedInversion(pendingNav.inversion ?? 0);
       setPendingNav(null);
     }
   }, [pendingNav, setPendingNav]);
@@ -117,7 +117,7 @@ export default function ChordsScreen() {
       setSelectedChord(key);
       const newInv = Math.min(selectedInversion, Math.min(maxInversion(key), 3));
       setSelectedInversion(newInv);
-      addRecent({ kind: 'chord', root, chordKey: key });
+      addRecent({ kind: 'chord', root, chordKey: key, inversion: newInv });
       closeDrawer();
       playChord(getChordMidi(root, key, 4, newInv));
     };
@@ -133,13 +133,16 @@ export default function ChordsScreen() {
       // Resolutions cross chord boundaries — reset inversion to root position
       // so the new chord lands in its natural voicing.
       setSelectedInversion(0);
-      addRecent({ kind: 'chord', root: newRoot, chordKey: targetType });
+      addRecent({ kind: 'chord', root: newRoot, chordKey: targetType, inversion: 0 });
       playChord(getChordMidi(newRoot, targetType));
     };
     if (!isChordFree(targetType)) { requirePro(apply); return; }
     apply();
   }
 
+  // Inversion-only changes don't add a recent — would spam the list as users
+  // cycle through voicings. The next chord/root change captures whichever
+  // inversion is current at that moment.
   function pickInversion(n: number) {
     setSelectedInversion(n);
     playChord(getChordMidi(root, selectedChord, 4, n));
@@ -171,7 +174,7 @@ export default function ChordsScreen() {
           {NOTES.map((note, i) => (
             <TouchableOpacity key={note} onPress={() => {
                 setRoot(i);
-                addRecent({ kind: 'chord', root: i, chordKey: selectedChord });
+                addRecent({ kind: 'chord', root: i, chordKey: selectedChord, inversion: selectedInversion });
                 playChord(getChordMidi(i, selectedChord, 4, selectedInversion));
               }}
               style={[styles.notePill, root === i && styles.notePillActive]} activeOpacity={0.7}>
@@ -206,7 +209,7 @@ export default function ChordsScreen() {
                 )}
               </Text>
             </View>
-            <HeartButton item={{ kind: 'chord', root, chordKey: selectedChord }} size="md" />
+            <HeartButton item={{ kind: 'chord', root, chordKey: selectedChord, inversion: selectedInversion }} size="md" />
           </View>
           <Text style={styles.detailDesc}>{chord?.description}</Text>
 

@@ -12,9 +12,9 @@ export type AppMode = 'scales' | 'chords';
 export type LabelMode = 'name' | 'degree' | 'interval' | 'none';
 
 export type SavedItem =
-  | { kind: 'scale';       root: number; scaleKey: string;     addedAt: number }
-  | { kind: 'chord';       root: number; chordKey: string;     addedAt: number }
-  | { kind: 'progression'; root: number; progName: string;     addedAt: number };
+  | { kind: 'scale';       root: number; scaleKey: string;                          addedAt: number }
+  | { kind: 'chord';       root: number; chordKey: string; inversion?: number;      addedAt: number }
+  | { kind: 'progression'; root: number; progName: string;                          addedAt: number };
 
 type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never;
 export type SavedItemInput = DistributiveOmit<SavedItem, 'addedAt'>;
@@ -24,7 +24,10 @@ const RECENTS_MAX = 20;
 function itemKey(it: SavedItemInput): string {
   switch (it.kind) {
     case 'scale':       return `s:${it.root}:${it.scaleKey}`;
-    case 'chord':       return `c:${it.root}:${it.chordKey}`;
+    // Inversion is part of identity — favoriting C Major root and C/E are
+    // two distinct entries. Missing inversion field (old saved data) reads
+    // as 0 / root position.
+    case 'chord':       return `c:${it.root}:${it.chordKey}:${it.inversion ?? 0}`;
     case 'progression': return `p:${it.root}:${it.progName}`;
   }
 }

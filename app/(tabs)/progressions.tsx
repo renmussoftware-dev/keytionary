@@ -16,7 +16,7 @@ import { useAudioEngine } from '../../src/hooks/useAudioEngine';
 import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isProgressionFree } from '../../src/constants/subscription';
-import { getChordMidi } from '../../src/utils/theory';
+import { getChordMidi, maxInversion, getInversionBass } from '../../src/utils/theory';
 import HeartButton from '../../src/components/HeartButton';
 import SavedSheet from '../../src/components/SavedSheet';
 
@@ -32,24 +32,24 @@ const DIATONIC_MAJOR = [
   { degree: 11, chordType: 'Diminished', numeral: 'vii°' },
 ];
 
-function ProgPiano({ chordRoot, chordKey, animVal }: {
-  chordRoot: number; chordKey: string; animVal: Animated.Value;
+function ProgPiano({ chordRoot, chordKey, inversion, animVal }: {
+  chordRoot: number; chordKey: string; inversion: number; animVal: Animated.Value;
 }) {
   return (
     <Animated.View style={{ opacity: animVal, alignItems: 'center' }}>
-      <PianoChordBox root={chordRoot} chordKey={chordKey} />
+      <PianoChordBox root={chordRoot} chordKey={chordKey} inversion={inversion} />
     </Animated.View>
   );
 }
 
-function MiniBox({ root, chordKey, numeral, active, onPress }: {
-  root: number; chordKey: string; numeral: string; active: boolean; onPress: () => void;
+function MiniBox({ root, chordKey, inversion, numeral, active, onPress }: {
+  root: number; chordKey: string; inversion: number; numeral: string; active: boolean; onPress: () => void;
 }) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}
       style={[styles.miniBox, active && styles.miniBoxActive]}>
       <Text style={[styles.miniNum, active && styles.miniNumActive]}>{numeral}</Text>
-      <PianoChordBox root={root} chordKey={chordKey} compact />
+      <PianoChordBox root={root} chordKey={chordKey} inversion={inversion} compact />
     </TouchableOpacity>
   );
 }
@@ -69,7 +69,7 @@ export default function ProgressionsScreen() {
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(80);
   const [showModal, setShowModal] = useState(false);
-  const [customChords, setCustomChords] = useState<{ root: number; chordType: string }[]>([]);
+  const [customChords, setCustomChords] = useState<{ root: number; chordType: string; inversion: number }[]>([]);
   const [modalRoot, setModalRoot] = useState<number>(root);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
@@ -127,6 +127,7 @@ export default function ProgressionsScreen() {
         numerals: customChords.map(c => NOTES[c.root]),
         degrees: customChords.map(() => 0),
         chordTypes: customChords.map(c => c.chordType),
+        inversions: customChords.map(c => c.inversion),
         genre: 'Custom',
         description: '',
       }
@@ -137,10 +138,11 @@ export default function ProgressionsScreen() {
             numerals: selectedExample.chords.map(c => NOTES[c.root]),
             degrees: selectedExample.chords.map(() => 0),
             chordTypes: selectedExample.chords.map(c => c.chordType),
+            inversions: selectedExample.chords.map(c => c.inversion ?? 0),
             genre: selectedExample.genre,
             description: selectedExample.description,
           }
-        : { name: '', numerals: [], degrees: [], chordTypes: [], genre: '', description: '' }
+        : { name: '', numerals: [], degrees: [], chordTypes: [], inversions: [], genre: '', description: '' }
       : selectedProg;
 
   const progRoots: number[] = subMode === 'custom'
@@ -149,22 +151,31 @@ export default function ProgressionsScreen() {
       ? (selectedExample?.chords.map(c => c.root) ?? [])
       : selectedProg.degrees.map(d => (root + d) % 12);
 
+  // Per-step inversions. Custom is the source of truth from customChords.
+  // Examples can specify inversions inline. Named progressions default all
+  // steps to root position unless their data specifies otherwise.
+  const stepInversions: number[] = activeProg.inversions
+    ?? activeProg.chordTypes.map(() => 0);
+
   const count = activeProg.degrees.length;
   const currentRoot = progRoots[activeIdx] ?? 0;
   const currentType = activeProg.chordTypes[activeIdx] ?? 'Major';
   const currentNumeral = activeProg.numerals[activeIdx] ?? '';
+  const currentInversion = stepInversions[activeIdx] ?? 0;
 
   function getProgressionMidi(): number[][] {
     return progRoots.map((chordRoot, i) => {
       const chordType = activeProg.chordTypes[i] ?? 'Major';
-      return getChordMidi(chordRoot, chordType);
+      const inv = stepInversions[i] ?? 0;
+      return getChordMidi(chordRoot, chordType, 4, inv);
     });
   }
 
   // Stable string key for the current chord sequence — restart playback only
-  // when the sequence actually changes, not on every render.
+  // when the sequence actually changes, not on every render. Inversions are
+  // part of the identity so toggling them mid-progression updates playback.
   const sequenceKey = progRoots
-    .map((r, i) => `${r}:${activeProg.chordTypes[i] ?? 'Major'}`)
+    .map((r, i) => `${r}:${activeProg.chordTypes[i] ?? 'Major'}:${stepInversions[i] ?? 0}`)
     .join('|');
 
   useEffect(() => {
@@ -215,7 +226,21 @@ export default function ProgressionsScreen() {
     ]).start();
     const chordRoot = progRoots[i] ?? 0;
     const chordType = activeProg.chordTypes[i] ?? 'Major';
-    playChord(getChordMidi(chordRoot, chordType));
+    const inv = stepInversions[i] ?? 0;
+    playChord(getChordMidi(chordRoot, chordType, 4, inv));
+  }
+
+  // Set the current step's inversion. Only meaningful when subMode === 'custom'
+  // since that's where the chord list is mutable. For named/diatonic/examples
+  // we ignore — the UI gates the controls on subMode anyway.
+  function pickStepInversion(n: number) {
+    if (subMode !== 'custom') return;
+    setCustomChords(chords => chords.map((c, i) =>
+      i === activeIdx ? { ...c, inversion: n } : c,
+    ));
+    const chordRoot = progRoots[activeIdx] ?? 0;
+    const chordType = activeProg.chordTypes[activeIdx] ?? 'Major';
+    playChord(getChordMidi(chordRoot, chordType, 4, n));
   }
 
   function pickProg(p: Progression) {
@@ -306,12 +331,49 @@ export default function ProgressionsScreen() {
                       Key of {subMode === 'examples' ? (selectedExample?.key ?? NOTES[root]) : NOTES[root]} · {bpm} BPM
                     </Text>
                   </View>
-                  <Text style={styles.activeName}>{NOTES[currentRoot]} {currentType}</Text>
+                  <Text style={styles.activeName}>
+                    {NOTES[currentRoot]} {currentType}
+                    {currentInversion > 0 && (
+                      <Text style={styles.activeNameSlash}>
+                        {' '}/ {NOTES[getInversionBass(currentRoot, currentType, currentInversion)]}
+                      </Text>
+                    )}
+                  </Text>
                   <Text style={styles.activeIntervals}>{CHORDS[currentType]?.intervalNames.join('  ·  ')}</Text>
+
+                  {/* Per-step inversion picker — only meaningful in the custom
+                      builder where each step's voicing is part of the saved
+                      arrangement. Named/diatonic/examples play as authored. */}
+                  {subMode === 'custom' && CHORDS[currentType] && CHORDS[currentType].intervals.length >= 2 && (() => {
+                    const invMax = Math.min(maxInversion(currentType), 3);
+                    const labels = ['Root', '1st', '2nd', '3rd'];
+                    return (
+                      <View style={styles.stepInvRow}>
+                        {Array.from({ length: invMax + 1 }, (_, i) => (
+                          <TouchableOpacity
+                            key={i}
+                            onPress={() => pickStepInversion(i)}
+                            activeOpacity={0.7}
+                            style={[
+                              styles.stepInvPill,
+                              currentInversion === i && styles.stepInvPillActive,
+                            ]}
+                          >
+                            <Text style={[
+                              styles.stepInvPillText,
+                              currentInversion === i && styles.stepInvPillTextActive,
+                            ]}>
+                              {labels[i]}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    );
+                  })()}
                 </View>
 
                 <View style={styles.fbWrap}>
-                  <ProgPiano chordRoot={currentRoot} chordKey={currentType} animVal={fadeAnim} />
+                  <ProgPiano chordRoot={currentRoot} chordKey={currentType} inversion={currentInversion} animVal={fadeAnim} />
                 </View>
 
                 <View style={styles.ctrlRow}>
@@ -344,6 +406,7 @@ export default function ProgressionsScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.boxRow}>
                   {progRoots.map((rootI, i) => (
                     <MiniBox key={i} root={rootI} chordKey={activeProg.chordTypes[i]}
+                      inversion={stepInversions[i] ?? 0}
                       numeral={activeProg.numerals[i]} active={i === activeIdx} onPress={() => goTo(i)} />
                   ))}
                 </ScrollView>
@@ -466,7 +529,10 @@ export default function ProgressionsScreen() {
                 {customChords.map((c, i) => (
                   <View key={i} style={styles.customItem}>
                     <Text style={styles.customItemNum}>{NOTES[c.root]}</Text>
-                    <Text style={styles.customItemName} numberOfLines={1}>{NOTES[c.root]} {c.chordType}</Text>
+                    <Text style={styles.customItemName} numberOfLines={1}>
+                      {NOTES[c.root]} {c.chordType}
+                      {c.inversion > 0 && ` / ${NOTES[getInversionBass(c.root, c.chordType, c.inversion)]}`}
+                    </Text>
                     <TouchableOpacity onPress={() => { setCustomChords(ch => ch.filter((_, j) => j !== i)); if (activeIdx >= customChords.length - 1) setActiveIdx(0); }}
                       style={styles.removeBtn} activeOpacity={0.7}>
                       <Text style={styles.removeTxt}>x</Text>
@@ -545,7 +611,7 @@ export default function ProgressionsScreen() {
                 return (
                   <TouchableOpacity key={i}
                     onPress={() => {
-                      setCustomChords(ch => [...ch, { root: absRoot, chordType: d.chordType }]);
+                      setCustomChords(ch => [...ch, { root: absRoot, chordType: d.chordType, inversion: 0 }]);
                       setShowModal(false); setActiveIdx(0);
                     }}
                     style={styles.modalItem} activeOpacity={0.7}>
@@ -570,7 +636,7 @@ export default function ProgressionsScreen() {
               {Object.keys(CHORDS).map(ck => (
                 <TouchableOpacity key={ck}
                   onPress={() => {
-                    setCustomChords(ch => [...ch, { root: modalRoot, chordType: ck }]);
+                    setCustomChords(ch => [...ch, { root: modalRoot, chordType: ck, inversion: 0 }]);
                     setShowModal(false); setActiveIdx(0);
                   }}
                   style={styles.modalItem} activeOpacity={0.7}>
@@ -701,7 +767,35 @@ const styles = StyleSheet.create({
                     fontFamily: FONT_FAMILY.mono, letterSpacing: 0.3,
                   },
   activeName:     { fontSize: 24, fontWeight: '700', color: COLORS.text, marginTop: SPACE.sm },
+  // Slash-chord bass note renders muted so the main chord name stays the
+  // primary cue — same treatment as on the Chords tab.
+  activeNameSlash:{ color: COLORS.textMuted, fontWeight: '600' },
   activeIntervals:{ fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.4, marginTop: 3 },
+
+  // Per-step inversion pill row in the now-playing card (custom mode only).
+  stepInvRow:     {
+                    flexDirection: 'row',
+                    gap: 6,
+                    marginTop: SPACE.md,
+                    justifyContent: 'center',
+                  },
+  stepInvPill:    {
+                    paddingHorizontal: 12, paddingVertical: 5,
+                    borderRadius: RADIUS.full,
+                    backgroundColor: COLORS.surface,
+                    borderWidth: 1, borderColor: COLORS.border,
+                  },
+  stepInvPillActive: {
+                    backgroundColor: COLORS.accentSoft,
+                    borderColor: COLORS.accent,
+                  },
+  stepInvPillText: {
+                    fontSize: 11, fontWeight: '600',
+                    color: COLORS.textMuted,
+                    fontFamily: FONT_FAMILY.mono,
+                    letterSpacing: 0.4,
+                  },
+  stepInvPillTextActive: { color: COLORS.text },
   activeProgName: { fontSize: 11, color: COLORS.textFaint, marginTop: 6, fontWeight: '600' },
   savedBtn:       {
                     width: 32, height: 32, borderRadius: 16,

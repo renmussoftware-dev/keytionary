@@ -3,6 +3,12 @@ export interface Progression {
   numerals: string[];       // e.g. ['I', 'IV', 'V', 'I']
   degrees: number[];        // semitone offsets from root: 0,5,7,0
   chordTypes: string[];     // keys into CHORDS: 'Major','Minor', etc
+  // Optional parallel array. Each entry = inversion index for that step
+  // (0=root, 1=1st inv, 2=2nd inv, 3=3rd inv). Defaults to all 0s when
+  // omitted. Used so named progressions can specify a particular voicing
+  // (e.g. inverting the V for smoother bass motion) and so the Custom
+  // builder can persist per-step voicings.
+  inversions?: number[];
   genre: string;
   description: string;
 }
@@ -302,6 +308,7 @@ export const GENRES = ['All', 'Pop', 'Rock', 'Blues', 'Jazz', 'Country', 'Folk',
 export interface ExampleChord {
   root: number;       // 0-11 absolute note class (C=0, C#=1, ... B=11)
   chordType: string;  // key into CHORDS
+  inversion?: number; // 0=root, 1=1st inv, etc. Defaults to 0.
 }
 
 export interface ExampleProgression {

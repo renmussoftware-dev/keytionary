@@ -5,6 +5,7 @@ import {
 import { router } from 'expo-router';
 import { COLORS, RADIUS, SPACE } from '../constants/theme';
 import { NOTES } from '../constants/music';
+import { getInversionBass } from '../utils/theory';
 import { useStore, type SavedItem } from '../store/useStore';
 
 interface Props {
@@ -28,8 +29,15 @@ const KIND_COLOR: Record<SavedItem['kind'], string> = {
 
 function itemTitle(it: SavedItem): string {
   const root = NOTES[it.root];
-  if (it.kind === 'scale')       return `${root} ${it.scaleKey}`;
-  if (it.kind === 'chord')       return `${root} ${it.chordKey}`;
+  if (it.kind === 'scale') return `${root} ${it.scaleKey}`;
+  if (it.kind === 'chord') {
+    const inv = it.inversion ?? 0;
+    if (inv > 0) {
+      const bass = NOTES[getInversionBass(it.root, it.chordKey, inv)];
+      return `${root} ${it.chordKey} / ${bass}`;
+    }
+    return `${root} ${it.chordKey}`;
+  }
   return `${it.progName} · in ${root}`;
 }
 
@@ -117,7 +125,7 @@ export default function SavedSheet({ visible, onClose }: Props) {
             ) : (
               items.map(it => (
                 <TouchableOpacity
-                  key={`${it.kind}-${it.root}-${'scaleKey' in it ? it.scaleKey : 'chordKey' in it ? it.chordKey : it.progName}`}
+                  key={`${it.kind}-${it.root}-${'scaleKey' in it ? it.scaleKey : 'chordKey' in it ? `${it.chordKey}:${it.inversion ?? 0}` : it.progName}`}
                   onPress={() => handleTap(it)}
                   activeOpacity={0.7}
                   style={styles.row}
