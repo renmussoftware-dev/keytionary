@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Keytionary Pricing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --surface2: #18181d;
+    --border: #222228;
+    --gold: #e8c84d;
+    --text: #f0ede8;
+    --muted: #7a7870;
+    --faint: #3a3835;
+  }
+
+  html, body {
+    width: 1024px;
+    height: 1024px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Instrument Sans', -apple-system, system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 600px 400px at 50% 0%, rgba(232,200,77,0.05), transparent 70%),
+      radial-gradient(ellipse 600px 400px at 50% 100%, rgba(110,96,217,0.04), transparent 70%),
+      var(--bg);
+    padding: 50px 50px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .eyebrow {
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 56px;
+    line-height: 1.08;
+    letter-spacing: -1.5px;
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 36px;
+  }
+
+  /* 2x2 grid */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    flex: 1;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 26px 28px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card.featured {
+    border-color: rgba(232,200,77,0.42);
+    background: linear-gradient(135deg, rgba(232,200,77,0.06), rgba(232,200,77,0.02));
+  }
+
+  .badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gold);
+    color: #1a1400;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    padding: 4px 14px;
+    border-radius: 100px;
+    text-transform: uppercase;
+  }
+
+  .tier {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .price {
+    font-family: 'DM Serif Display', serif;
+    font-size: 40px;
+    line-height: 1;
+    letter-spacing: -1px;
+    margin-bottom: 2px;
+    color: var(--text);
+  }
+  .price .cents { font-size: 20px; }
+
+  .per {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    min-height: 14px;
+  }
+
+  ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 14px;
+    flex: 1;
+  }
+
+  ul li {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    line-height: 1.4;
+  }
+  ul li::before {
+    content: '✓';
+    color: var(--gold);
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .btn {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    margin-top: auto;
+  }
+
+  .card.featured .btn {
+    background: var(--gold);
+    color: #1a1400;
+    border-color: var(--gold);
+  }
+
+  .footer-note {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="eyebrow">Simple Pricing</div>
+<h1>Start free.<br>Go deeper when you're ready.</h1>
+
+<div class="grid">
+  <!-- Free -->
+  <div class="card">
+    <div class="tier">Free</div>
+    <div class="price">$0</div>
+    <div class="per">forever</div>
+    <ul>
+      <li>Interactive keyboard</li>
+      <li>4 essential scales</li>
+      <li>8 core chord types</li>
+      <li>4 starter progressions</li>
+      <li>Smart resolution hints</li>
+      <li>Favorites &amp; recents</li>
+    </ul>
+    <div class="btn">Download Free</div>
+  </div>
+
+  <!-- Monthly -->
+  <div class="card">
+    <div class="tier">Monthly</div>
+    <div class="price">$5<span class="cents">.99</span></div>
+    <div class="per">per month</div>
+    <ul>
+      <li>Everything in Free</li>
+      <li>All 14 scales &amp; modes</li>
+      <li>Full chord library (35 types)</li>
+      <li>All 22 progressions</li>
+      <li>Custom mode</li>
+      <li>Real piano audio playback</li>
+      <li>Built-in metronome</li>
+    </ul>
+    <div class="btn">Download Free</div>
+  </div>
+
+  <!-- Annual (featured) -->
+  <div class="card featured">
+    <div class="badge">Best Value</div>
+    <div class="tier">Annual</div>
+    <div class="price">$29<span class="cents">.99</span></div>
+    <div class="per">per year — save 58% vs monthly</div>
+    <ul>
+      <li>Everything in Monthly</li>
+      <li>2 months free vs paying monthly</li>
+      <li>Priority for new features</li>
+    </ul>
+    <div class="btn">Download Free</div>
+  </div>
+
+  <!-- Lifetime -->
+  <div class="card">
+    <div class="tier">Lifetime</div>
+    <div class="price">$44<span class="cents">.99</span></div>
+    <div class="per">one-time payment</div>
+    <ul>
+      <li>Everything in Annual</li>
+      <li>All future updates</li>
+      <li>No recurring charge</li>
+      <li>Priority support</li>
+    </ul>
+    <div class="btn">Download Free</div>
+  </div>
+</div>
+
+<div class="footer-note">Launching first on iOS. Android coming soon after.</div>
+
+</body>
+</html>

@@ -24,17 +24,17 @@
  */
 
 export const REVENUECAT = {
-  iosApiKey:     'appl_PLACEHOLDER',
+  iosApiKey:     'appl_KEmbhloMThUmrIscCgooEEvCDKY',
   androidApiKey: 'goog_PLACEHOLDER',
   entitlementId: 'Keytionary Pro',
 } as const;
 
-// Treat the config as unconfigured while either key is still the placeholder.
-// The audio playback features all work without Pro — only the paywall and
-// pro-locked items care, and they gracefully fall back to free behavior.
-export function isRevenueCatConfigured(): boolean {
-  return (
-    !REVENUECAT.iosApiKey.endsWith('_PLACEHOLDER') &&
-    !REVENUECAT.androidApiKey.endsWith('_PLACEHOLDER')
-  );
+// Treat the config as unconfigured for the *current* platform only. iOS can
+// ship before Android is set up; a placeholder Android key won't block iOS RC
+// init. The audio playback features all work without Pro — only the paywall
+// and pro-locked items care, and they gracefully fall back to free behavior.
+export function isRevenueCatConfigured(platform: 'ios' | 'android' | string): boolean {
+  if (platform === 'ios') return !REVENUECAT.iosApiKey.endsWith('_PLACEHOLDER');
+  if (platform === 'android') return !REVENUECAT.androidApiKey.endsWith('_PLACEHOLDER');
+  return false;
 }

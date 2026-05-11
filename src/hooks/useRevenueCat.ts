@@ -27,12 +27,12 @@ export function useRevenueCat() {
 
   useEffect(() => {
     async function init() {
-      // Keys still placeholders → skip the RC SDK entirely. The app runs
-      // free, the paywall shows "no packages", nothing crashes. This unblocks
-      // dev before the RevenueCat dashboard is set up.
-      if (!isRevenueCatConfigured()) {
+      // Key still a placeholder for this platform → skip RC entirely. The
+      // app runs free, the paywall shows "no packages", nothing crashes.
+      // Lets us ship iOS before Android is configured.
+      if (!isRevenueCatConfigured(Platform.OS)) {
         if (__DEV__) {
-          console.warn('[RevenueCat] Not configured — skipping init. See src/constants/revenuecat.ts.');
+          console.warn(`[RevenueCat] Not configured for ${Platform.OS} — skipping init. See src/constants/revenuecat.ts.`);
         }
         setState(s => ({ ...s, isLoading: false }));
         return;
