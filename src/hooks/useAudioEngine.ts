@@ -82,13 +82,6 @@ const AUDIO_FILES: Record<string, any> = {
 
 export function useAudioEngine() {
   const soundsRef = useRef<Record<string, Sound>>({});
-  // Sounds currently ringing from the most recent playChord. We stop these
-  // before starting the next chord so iOS' simultaneous-sound channels don't
-  // pile up across a long progression — at 80 BPM with 3.5s piano samples,
-  // every previous chord's notes are still playing when the new one starts,
-  // and once the channel count gets high enough new playback calls drop
-  // silently on iOS.
-  const activeSoundsRef = useRef<Set<Sound>>(new Set());
   const loadedRef = useRef(false);
   const progressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -160,37 +153,30 @@ export function useAudioEngine() {
     }
   }, []);
 
-  // Stop every sound currently ringing from the most recent chord. Called at
-  // the start of playChord so chords don't pile up channels across a
-  // progression — iOS silently drops new playback after the active-sound
-  // count climbs past its limit. Failures are swallowed.
-  const stopActive = useCallback(async () => {
-    const sounds = Array.from(activeSoundsRef.current);
-    activeSoundsRef.current.clear();
-    await Promise.all(sounds.map(s => s.stopAsync().catch(() => {})));
-  }, []);
-
   // Play a chord as a near-simultaneous arpeggio (subtle roll, low to high).
-  // Always stops every previously-active sound before the new chord — the
-  // "only stop unique-to-previous" optimization (sparing shared notes from
-  // an explicit stop before replayAsync) ended up dropping freshly-attacked
-  // notes too. The full stop is the version that actually plays reliably
-  // on iOS across every chord transition we've tested.
+  //
+  // We deliberately don't stop previously-ringing notes from the prior chord.
+  // Earlier attempts to do that — both "stop everything" and "stop unique-
+  // to-previous" — dropped freshly-attacked notes in some progressions
+  // (F → Am with A3/C4 going silent). The likeliest cause is that stopAsync
+  // + replayAsync interactions on iOS' shared audio session are racy enough
+  // that some new notes never actually start.
+  //
+  // replayAsync alone is atomic and reliable: it resets the position and
+  // plays in one native call, regardless of whether the sound was idle or
+  // ringing. Old notes ring out naturally on their fade-out tail (samples
+  // are 3.5s with 1s fade), and by the third chord most of the first
+  // chord's energy is gone.
   const playChord = useCallback(async (notes: number[]) => {
-    await stopActive();
     const sorted = [...notes].sort((a, b) => a - b);
     await Promise.all(
       sorted.map((midi, i) =>
         new Promise<void>(resolve => {
-          setTimeout(() => {
-            const sound = soundsRef.current[midiToFilename(midi)];
-            if (sound) activeSoundsRef.current.add(sound);
-            playMidi(midi).then(resolve);
-          }, i * 14);
+          setTimeout(() => { playMidi(midi).then(resolve); }, i * 14);
         })
       )
     );
-  }, [playMidi, stopActive]);
+  }, [playMidi]);
 
   const stopProgression = useCallback(() => {
     if (progressionTimerRef.current) {
