@@ -49,14 +49,23 @@ function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickIn
   numeral: string;
   active: boolean;
   onPress: () => void;
-  // When provided, renders a compact Root/1st/2nd/3rd pill row directly under
-  // the chord. Only passed in custom mode — named/diatonic/examples display
-  // their authored voicings without inversion controls.
+  // When provided, renders a compact `‹ R 1 2 3 ›` row directly under the
+  // chord. Arrows step through inversions and serve as a visual cycle
+  // affordance even when the user notices the pills first. Only passed in
+  // custom mode — named/diatonic/examples display authored voicings.
   onPickInversion?: (n: number) => void;
   invMax?: number;
 }) {
-  const pillsVisible = !!onPickInversion && (invMax ?? 0) > 0;
+  const max = invMax ?? 0;
+  const pillsVisible = !!onPickInversion && max > 0;
   const labels = ['R', '1', '2', '3'];
+  const canPrev = inversion > 0;
+  const canNext = inversion < max;
+  const bump = (delta: number) => {
+    if (!onPickInversion) return;
+    const next = Math.max(0, Math.min(max, inversion + delta));
+    if (next !== inversion) onPickInversion(next);
+  };
   return (
     <View style={[styles.miniBox, active && styles.miniBoxActive]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.miniBoxTap}>
@@ -65,7 +74,16 @@ function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickIn
       </TouchableOpacity>
       {pillsVisible && (
         <View style={styles.miniInvRow}>
-          {Array.from({ length: (invMax ?? 0) + 1 }, (_, i) => (
+          <TouchableOpacity
+            onPress={() => bump(-1)}
+            activeOpacity={0.7}
+            disabled={!canPrev}
+            style={[styles.miniInvArrow, !canPrev && styles.miniInvArrowDisabled]}
+            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+          >
+            <Text style={[styles.miniInvArrowText, !canPrev && styles.miniInvArrowTextDisabled]}>‹</Text>
+          </TouchableOpacity>
+          {Array.from({ length: max + 1 }, (_, i) => (
             <TouchableOpacity
               key={i}
               onPress={() => onPickInversion!(i)}
@@ -80,6 +98,15 @@ function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickIn
               </Text>
             </TouchableOpacity>
           ))}
+          <TouchableOpacity
+            onPress={() => bump(1)}
+            activeOpacity={0.7}
+            disabled={!canNext}
+            style={[styles.miniInvArrow, !canNext && styles.miniInvArrowDisabled]}
+            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+          >
+            <Text style={[styles.miniInvArrowText, !canNext && styles.miniInvArrowTextDisabled]}>›</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -283,6 +310,19 @@ export default function ProgressionsScreen() {
     playChord(getChordMidi(chordRoot, chordType, 4, n));
   }
 
+  // Bump a step's inversion by +/-1, clamped at [0, maxForChord]. Used by the
+  // arrow buttons that flank each pill row — they exist for affordance more
+  // than utility (users can tap any pill directly), but power users may
+  // prefer the cycle pattern.
+  function bumpStepInversion(stepIdx: number, delta: number) {
+    if (subMode !== 'custom') return;
+    const chordType = activeProg.chordTypes[stepIdx] ?? 'Major';
+    const max = Math.min(maxInversion(chordType), 3);
+    const current = stepInversions[stepIdx] ?? 0;
+    const next = Math.max(0, Math.min(max, current + delta));
+    if (next !== current) pickInversionForStep(stepIdx, next);
+  }
+
   function pickProg(p: Progression) {
     setSelectedProg(p);
     setActiveIdx(0);
@@ -387,8 +427,19 @@ export default function ProgressionsScreen() {
                   {subMode === 'custom' && CHORDS[currentType] && CHORDS[currentType].intervals.length >= 2 && (() => {
                     const invMax = Math.min(maxInversion(currentType), 3);
                     const labels = ['Root', '1st', '2nd', '3rd'];
+                    const canPrev = currentInversion > 0;
+                    const canNext = currentInversion < invMax;
                     return (
                       <View style={styles.stepInvRow}>
+                        <TouchableOpacity
+                          onPress={() => bumpStepInversion(activeIdx, -1)}
+                          activeOpacity={0.7}
+                          disabled={!canPrev}
+                          style={[styles.stepInvArrow, !canPrev && styles.stepInvArrowDisabled]}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Text style={[styles.stepInvArrowText, !canPrev && styles.stepInvArrowTextDisabled]}>‹</Text>
+                        </TouchableOpacity>
                         {Array.from({ length: invMax + 1 }, (_, i) => (
                           <TouchableOpacity
                             key={i}
@@ -407,6 +458,15 @@ export default function ProgressionsScreen() {
                             </Text>
                           </TouchableOpacity>
                         ))}
+                        <TouchableOpacity
+                          onPress={() => bumpStepInversion(activeIdx, 1)}
+                          activeOpacity={0.7}
+                          disabled={!canNext}
+                          style={[styles.stepInvArrow, !canNext && styles.stepInvArrowDisabled]}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Text style={[styles.stepInvArrowText, !canNext && styles.stepInvArrowTextDisabled]}>›</Text>
+                        </TouchableOpacity>
                       </View>
                     );
                   })()}
@@ -839,6 +899,18 @@ const styles = StyleSheet.create({
                     letterSpacing: 0.4,
                   },
   stepInvPillTextActive: { color: COLORS.text },
+  // ‹ › arrows flanking the now-playing inversion pills. Bigger hit target
+  // than the pills themselves; visually de-emphasized so the pills remain
+  // the primary affordance.
+  stepInvArrow:         {
+                          width: 28, height: 28, borderRadius: 14,
+                          borderWidth: 1, borderColor: COLORS.border,
+                          backgroundColor: COLORS.surface,
+                          alignItems: 'center', justifyContent: 'center',
+                        },
+  stepInvArrowDisabled: { opacity: 0.3 },
+  stepInvArrowText:     { fontSize: 16, fontWeight: '700', color: COLORS.textMuted, lineHeight: 18 },
+  stepInvArrowTextDisabled: { color: COLORS.textFaint },
   activeProgName: { fontSize: 11, color: COLORS.textFaint, marginTop: 6, fontWeight: '600' },
   savedBtn:       {
                     width: 32, height: 32, borderRadius: 16,
@@ -915,6 +987,15 @@ const styles = StyleSheet.create({
                        fontFamily: FONT_FAMILY.mono,
                      },
   miniInvPillTextActive: { color: COLORS.text },
+  // Compact ‹ › arrows for the per-card carousel pill row. Smaller than the
+  // now-playing version to fit the narrow MiniBox width.
+  miniInvArrow:         {
+                          paddingHorizontal: 4, paddingVertical: 1,
+                          alignItems: 'center', justifyContent: 'center',
+                        },
+  miniInvArrowDisabled: { opacity: 0.3 },
+  miniInvArrowText:     { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, lineHeight: 14 },
+  miniInvArrowTextDisabled: { color: COLORS.textFaint },
   descCard:       { marginHorizontal: SPACE.md, marginBottom: SPACE.md, backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACE.md, borderWidth: 1, borderColor: COLORS.border },
   descTitle:      { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 3 },
   descTxt:        { fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
