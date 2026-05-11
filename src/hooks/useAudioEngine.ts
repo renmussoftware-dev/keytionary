@@ -160,41 +160,37 @@ export function useAudioEngine() {
     }
   }, []);
 
+  // Stop every sound currently ringing from the most recent chord. Called at
+  // the start of playChord so chords don't pile up channels across a
+  // progression — iOS silently drops new playback after the active-sound
+  // count climbs past its limit. Failures are swallowed.
+  const stopActive = useCallback(async () => {
+    const sounds = Array.from(activeSoundsRef.current);
+    activeSoundsRef.current.clear();
+    await Promise.all(sounds.map(s => s.stopAsync().catch(() => {})));
+  }, []);
+
   // Play a chord as a near-simultaneous arpeggio (subtle roll, low to high).
-  //
-  // Polyphony management: we stop the previous chord's notes that aren't
-  // about to be re-attacked, then replayAsync each note in the new chord.
-  // For shared notes (e.g. C and Em both use E and G), we skip the stop and
-  // go straight to replayAsync — stopAsync immediately followed by
-  // replayAsync on the *same* Sound object on iOS races: the seek lands
-  // after the new play has started, leaving the note continuing from
-  // wherever it was instead of re-attacking. By only stopping the unique-
-  // to-previous sounds, every shared note gets a clean atomic restart.
+  // Always stops every previously-active sound before the new chord — the
+  // "only stop unique-to-previous" optimization (sparing shared notes from
+  // an explicit stop before replayAsync) ended up dropping freshly-attacked
+  // notes too. The full stop is the version that actually plays reliably
+  // on iOS across every chord transition we've tested.
   const playChord = useCallback(async (notes: number[]) => {
+    await stopActive();
     const sorted = [...notes].sort((a, b) => a - b);
-
-    // Resolve each MIDI note to its Sound object, skipping any that aren't
-    // loaded (rare — only happens for notes outside the bundled range).
-    const newSounds = new Set<Sound>();
-    for (const midi of sorted) {
-      const s = soundsRef.current[midiToFilename(midi)];
-      if (s) newSounds.add(s);
-    }
-
-    // Stop only the previously-active sounds that aren't carried into this
-    // chord. Shared sounds will be re-attacked via replayAsync below.
-    const toStop = Array.from(activeSoundsRef.current).filter(s => !newSounds.has(s));
-    activeSoundsRef.current = newSounds;
-    await Promise.all(toStop.map(s => s.stopAsync().catch(() => {})));
-
     await Promise.all(
       sorted.map((midi, i) =>
         new Promise<void>(resolve => {
-          setTimeout(() => { playMidi(midi).then(resolve); }, i * 14);
+          setTimeout(() => {
+            const sound = soundsRef.current[midiToFilename(midi)];
+            if (sound) activeSoundsRef.current.add(sound);
+            playMidi(midi).then(resolve);
+          }, i * 14);
         })
       )
     );
-  }, [playMidi]);
+  }, [playMidi, stopActive]);
 
   const stopProgression = useCallback(() => {
     if (progressionTimerRef.current) {
