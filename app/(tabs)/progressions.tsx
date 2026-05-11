@@ -42,15 +42,47 @@ function ProgPiano({ chordRoot, chordKey, inversion, animVal }: {
   );
 }
 
-function MiniBox({ root, chordKey, inversion, numeral, active, onPress }: {
-  root: number; chordKey: string; inversion: number; numeral: string; active: boolean; onPress: () => void;
+function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickInversion, invMax }: {
+  root: number;
+  chordKey: string;
+  inversion: number;
+  numeral: string;
+  active: boolean;
+  onPress: () => void;
+  // When provided, renders a compact Root/1st/2nd/3rd pill row directly under
+  // the chord. Only passed in custom mode — named/diatonic/examples display
+  // their authored voicings without inversion controls.
+  onPickInversion?: (n: number) => void;
+  invMax?: number;
 }) {
+  const pillsVisible = !!onPickInversion && (invMax ?? 0) > 0;
+  const labels = ['R', '1', '2', '3'];
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}
-      style={[styles.miniBox, active && styles.miniBoxActive]}>
-      <Text style={[styles.miniNum, active && styles.miniNumActive]}>{numeral}</Text>
-      <PianoChordBox root={root} chordKey={chordKey} inversion={inversion} compact />
-    </TouchableOpacity>
+    <View style={[styles.miniBox, active && styles.miniBoxActive]}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.miniBoxTap}>
+        <Text style={[styles.miniNum, active && styles.miniNumActive]}>{numeral}</Text>
+        <PianoChordBox root={root} chordKey={chordKey} inversion={inversion} compact />
+      </TouchableOpacity>
+      {pillsVisible && (
+        <View style={styles.miniInvRow}>
+          {Array.from({ length: (invMax ?? 0) + 1 }, (_, i) => (
+            <TouchableOpacity
+              key={i}
+              onPress={() => onPickInversion!(i)}
+              activeOpacity={0.7}
+              style={[styles.miniInvPill, inversion === i && styles.miniInvPillActive]}
+            >
+              <Text style={[
+                styles.miniInvPillText,
+                inversion === i && styles.miniInvPillTextActive,
+              ]}>
+                {labels[i]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -235,11 +267,19 @@ export default function ProgressionsScreen() {
   // we ignore — the UI gates the controls on subMode anyway.
   function pickStepInversion(n: number) {
     if (subMode !== 'custom') return;
+    pickInversionForStep(activeIdx, n);
+  }
+
+  // Same as pickStepInversion but for any step index (used by per-card pill
+  // rows in the chord-shapes carousel — lets users adjust voicing of any
+  // chord directly without having to make it active first).
+  function pickInversionForStep(stepIdx: number, n: number) {
+    if (subMode !== 'custom') return;
     setCustomChords(chords => chords.map((c, i) =>
-      i === activeIdx ? { ...c, inversion: n } : c,
+      i === stepIdx ? { ...c, inversion: n } : c,
     ));
-    const chordRoot = progRoots[activeIdx] ?? 0;
-    const chordType = activeProg.chordTypes[activeIdx] ?? 'Major';
+    const chordRoot = progRoots[stepIdx] ?? 0;
+    const chordType = activeProg.chordTypes[stepIdx] ?? 'Major';
     playChord(getChordMidi(chordRoot, chordType, 4, n));
   }
 
@@ -407,7 +447,10 @@ export default function ProgressionsScreen() {
                   {progRoots.map((rootI, i) => (
                     <MiniBox key={i} root={rootI} chordKey={activeProg.chordTypes[i]}
                       inversion={stepInversions[i] ?? 0}
-                      numeral={activeProg.numerals[i]} active={i === activeIdx} onPress={() => goTo(i)} />
+                      numeral={activeProg.numerals[i]} active={i === activeIdx} onPress={() => goTo(i)}
+                      onPickInversion={subMode === 'custom' ? (n) => pickInversionForStep(i, n) : undefined}
+                      invMax={Math.min(maxInversion(activeProg.chordTypes[i] ?? 'Major'), 3)}
+                    />
                   ))}
                 </ScrollView>
 
@@ -847,10 +890,31 @@ const styles = StyleSheet.create({
   boxRow:         { paddingHorizontal: SPACE.md, gap: 8, paddingBottom: SPACE.md },
   miniBox:        { alignItems: 'center', padding: 7, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, minWidth: 70 },
   miniBoxActive:  { borderColor: '#E8D44D', backgroundColor: COLORS.surfaceHigh },
+  // Tap target for selecting the step (chord title + keyboard). The inversion
+  // pills sit below this as a sibling so they don't trigger step-selection
+  // when tapped.
+  miniBoxTap:     { alignItems: 'center' },
   miniNum:        { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 3 },
   miniNumActive:  { color: '#E8D44D' },
   miniName:       { fontSize: 8, color: COLORS.textFaint, marginTop: 1 },
   miniNameActive: { color: COLORS.textMuted },
+  // Compact inversion pills under each chord card in custom mode. Labels are
+  // single chars (R / 1 / 2 / 3) to fit the narrow MiniBox width.
+  miniInvRow:        { flexDirection: 'row', gap: 3, marginTop: 6 },
+  miniInvPill:       {
+                       paddingHorizontal: 6, paddingVertical: 2,
+                       borderRadius: 8,
+                       backgroundColor: COLORS.bg,
+                       borderWidth: 1, borderColor: COLORS.border,
+                       minWidth: 18, alignItems: 'center',
+                     },
+  miniInvPillActive: { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accent },
+  miniInvPillText:   {
+                       fontSize: 9, fontWeight: '700',
+                       color: COLORS.textMuted,
+                       fontFamily: FONT_FAMILY.mono,
+                     },
+  miniInvPillTextActive: { color: COLORS.text },
   descCard:       { marginHorizontal: SPACE.md, marginBottom: SPACE.md, backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACE.md, borderWidth: 1, borderColor: COLORS.border },
   descTitle:      { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 3 },
   descTxt:        { fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
