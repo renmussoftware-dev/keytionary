@@ -405,7 +405,9 @@ export default function ProgressionsScreen() {
                     <Text style={styles.activeProgTitle}>
                       {subMode === 'examples'
                         ? (selectedExample?.name ?? 'Examples')
-                        : isNamedProg ? selectedProg.name : 'Custom'}
+                        : subMode === 'custom'
+                          ? 'Custom'
+                          : (selectedProg.name || (subMode === 'diatonic' ? 'Diatonic' : 'Common'))}
                     </Text>
                     <Text style={styles.activeMeta}>
                       Key of {subMode === 'examples' ? (selectedExample?.key ?? NOTES[root]) : NOTES[root]} · {bpm} BPM
@@ -587,7 +589,7 @@ export default function ProgressionsScreen() {
                 return (
                   <TouchableOpacity key={i} onPress={() => {
                     pickProg({ name: `${d.numeral} — ${NOTES[cr]} ${d.chordType}`, numerals: [d.numeral], degrees: [d.degree], chordTypes: [d.chordType], genre: 'Diatonic', description: `The ${d.numeral} chord of ${NOTES[root]} major.` });
-                    setSubMode('common'); closeDrawer();
+                    closeDrawer();
                   }} style={styles.progItem} activeOpacity={0.7}>
                     <View style={styles.diatRow}>
                       <Text style={styles.diatNum}>{d.numeral}</Text>
@@ -607,7 +609,6 @@ export default function ProgressionsScreen() {
                 { name: 'I – vi – IV – V', n: ['I','vi','IV','V'], d: [0,9,5,7], t: ['Major','Minor','Major','Major'] },
               ].map(p => (
                 <TouchableOpacity key={p.name} onPress={() => {
-                  setSubMode('common');
                   const match = PROGRESSIONS.find(x => x.name === p.name);
                   if (match) pickProg(match);
                   else pickProg({ name: p.name, numerals: p.n, degrees: p.d, chordTypes: p.t, genre: 'Diatonic', description: '' });
