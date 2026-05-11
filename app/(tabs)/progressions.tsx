@@ -513,7 +513,13 @@ export default function ProgressionsScreen() {
                   {progRoots.map((rootI, i) => (
                     <MiniBox key={i} root={rootI} chordKey={activeProg.chordTypes[i]}
                       inversion={stepInversions[i] ?? 0}
-                      numeral={activeProg.numerals[i]} active={i === activeIdx} onPress={() => goTo(i)}
+                      // Always show chord shorthand (Cmaj7, Am, etc.) on cards
+                      // — the use case is "look ahead and know what to play
+                      // next without tapping". Roman numerals for named
+                      // progressions stay visible in the progression name and
+                      // in the drawer list.
+                      numeral={chordShortName(rootI, activeProg.chordTypes[i] ?? 'Major')}
+                      active={i === activeIdx} onPress={() => goTo(i)}
                       onPickInversion={subMode === 'custom' ? (n) => pickInversionForStep(i, n) : undefined}
                       invMax={Math.min(maxInversion(activeProg.chordTypes[i] ?? 'Major'), 3)}
                     />

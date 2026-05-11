@@ -132,6 +132,9 @@ export function useAudioEngine() {
     };
   }, []);
 
+  // Play a single note. Always uses replayAsync — the documented atomic
+  // "reset position and play" API that works whether the sound is currently
+  // playing or stopped. Lazy-loads the sample if it wasn't preloaded.
   const playMidi = useCallback(async (midi: number) => {
     const name = midiToFilename(midi);
     let sound = soundsRef.current[name];
@@ -151,34 +154,39 @@ export function useAudioEngine() {
 
     if (!sound) return;
     try {
-      // replayAsync resets position to 0 and plays in one atomic call,
-      // regardless of whether the sound is currently playing or stopped.
-      // setPositionAsync(0) + playAsync() races on already-playing sounds —
-      // the seek can happen after the resume kicks in, so a shared note
-      // between chords wouldn't actually re-attack.
-      activeSoundsRef.current.add(sound);
       await sound.replayAsync();
     } catch {
       // ignore playback errors
     }
   }, []);
 
-  // Stop every sound currently ringing from the most recent chord. Called at
-  // the start of playChord so chords don't pile up channels across a
-  // progression. Failures are swallowed — if a sound was already stopped or
-  // unloaded, we don't care.
-  const stopActive = useCallback(async () => {
-    const sounds = Array.from(activeSoundsRef.current);
-    activeSoundsRef.current.clear();
-    await Promise.all(sounds.map(s => s.stopAsync().catch(() => {})));
-  }, []);
-
   // Play a chord as a near-simultaneous arpeggio (subtle roll, low to high).
-  // notes are absolute MIDI numbers. Previous chord's notes are stopped
-  // first so each chord rings cleanly without polyphony pile-up.
+  //
+  // Polyphony management: we stop the previous chord's notes that aren't
+  // about to be re-attacked, then replayAsync each note in the new chord.
+  // For shared notes (e.g. C and Em both use E and G), we skip the stop and
+  // go straight to replayAsync — stopAsync immediately followed by
+  // replayAsync on the *same* Sound object on iOS races: the seek lands
+  // after the new play has started, leaving the note continuing from
+  // wherever it was instead of re-attacking. By only stopping the unique-
+  // to-previous sounds, every shared note gets a clean atomic restart.
   const playChord = useCallback(async (notes: number[]) => {
-    await stopActive();
     const sorted = [...notes].sort((a, b) => a - b);
+
+    // Resolve each MIDI note to its Sound object, skipping any that aren't
+    // loaded (rare — only happens for notes outside the bundled range).
+    const newSounds = new Set<Sound>();
+    for (const midi of sorted) {
+      const s = soundsRef.current[midiToFilename(midi)];
+      if (s) newSounds.add(s);
+    }
+
+    // Stop only the previously-active sounds that aren't carried into this
+    // chord. Shared sounds will be re-attacked via replayAsync below.
+    const toStop = Array.from(activeSoundsRef.current).filter(s => !newSounds.has(s));
+    activeSoundsRef.current = newSounds;
+    await Promise.all(toStop.map(s => s.stopAsync().catch(() => {})));
+
     await Promise.all(
       sorted.map((midi, i) =>
         new Promise<void>(resolve => {
@@ -186,7 +194,7 @@ export function useAudioEngine() {
         })
       )
     );
-  }, [playMidi, stopActive]);
+  }, [playMidi]);
 
   const stopProgression = useCallback(() => {
     if (progressionTimerRef.current) {
