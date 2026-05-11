@@ -16,7 +16,7 @@ import { useAudioEngine } from '../../src/hooks/useAudioEngine';
 import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isProgressionFree } from '../../src/constants/subscription';
-import { getChordMidi, maxInversion, getInversionBass } from '../../src/utils/theory';
+import { getChordMidi, maxInversion, getInversionBass, chordShortName } from '../../src/utils/theory';
 import HeartButton from '../../src/components/HeartButton';
 import SavedSheet from '../../src/components/SavedSheet';
 
@@ -180,10 +180,14 @@ export default function ProgressionsScreen() {
     },
   })).current;
 
+  // Custom and Examples don't have authored roman-numeral labels — derive a
+  // chord-name shorthand (Cmaj7, Dm, A7♭5, etc.) from each step's root and
+  // type. Named progressions keep their roman numerals; the chord names
+  // are read off the now-playing card instead.
   const activeProg: Progression = subMode === 'custom'
     ? {
         name: 'Custom',
-        numerals: customChords.map(c => NOTES[c.root]),
+        numerals: customChords.map(c => chordShortName(c.root, c.chordType)),
         degrees: customChords.map(() => 0),
         chordTypes: customChords.map(c => c.chordType),
         inversions: customChords.map(c => c.inversion),
@@ -194,7 +198,7 @@ export default function ProgressionsScreen() {
       ? selectedExample
         ? {
             name: selectedExample.name,
-            numerals: selectedExample.chords.map(c => NOTES[c.root]),
+            numerals: selectedExample.chords.map(c => chordShortName(c.root, c.chordType)),
             degrees: selectedExample.chords.map(() => 0),
             chordTypes: selectedExample.chords.map(c => c.chordType),
             inversions: selectedExample.chords.map(c => c.inversion ?? 0),

@@ -65,6 +65,59 @@ export function getInversionBass(root: number, chordKey: string, inversion: numb
   return (root + ch.intervals[idx]) % 12;
 }
 
+// Compact chord notation suffix. The verbose chord type names in CHORDS
+// ("Major 7", "Half-Dim 7") read naturally in the detail card but are too
+// long for inline labels like progression chord cards. This maps each
+// chord type to its standard pianist shorthand. Empty string for plain
+// triads (just the root letter — "C" for C major).
+const CHORD_SHORTHAND: Record<string, string> = {
+  'Major':       '',
+  'Minor':       'm',
+  'Diminished':  'dim',
+  'Augmented':   'aug',
+  'Sus2':        'sus2',
+  'Sus4':        'sus4',
+  'Dom 7sus4':   '7sus4',
+  'Power (5)':   '5',
+  'Major 6':     '6',
+  'Minor 6':     'm6',
+  'Dominant 7':  '7',
+  'Major 7':     'maj7',
+  'Minor 7':     'm7',
+  'Minor Maj7':  'mMaj7',
+  'Dim 7':       'dim7',
+  'Half-Dim 7':  'm7♭5',
+  'Aug 7':       'aug7',
+  'Dominant 9':  '9',
+  'Major 9':     'maj9',
+  'Minor 9':     'm9',
+  'Add9':        'add9',
+  'Dominant 11': '11',
+  'Major 11':    'maj11',
+  'Minor 11':    'm11',
+  'Dominant 13': '13',
+  'Major 13':    'maj13',
+  'Minor 13':    'm13',
+  'Minor Add9':  'm(add9)',
+  'Add11':       'add11',
+  '6/9':         '6/9',
+  'Minor 6/9':   'm6/9',
+  'Dom 7♭5':     '7♭5',
+  'Dom 7♭9':     '7♭9',
+  'Dom 7♯9':     '7♯9',
+  'Dom 7♯11':    '7♯11',
+  'Maj7♯11':     'maj7♯11',
+};
+
+export function chordShorthand(chordKey: string): string {
+  return CHORD_SHORTHAND[chordKey] ?? '';
+}
+
+// Root letter + shorthand suffix. "Cmaj7", "Dm", "A7♭5", etc.
+export function chordShortName(root: number, chordKey: string): string {
+  return NOTES[root] + chordShorthand(chordKey);
+}
+
 export function noteLabel(
   noteIdx: number,
   root: number,
