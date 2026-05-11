@@ -153,29 +153,20 @@ export function useAudioEngine() {
     }
   }, []);
 
-  // Play a chord as a near-simultaneous arpeggio (subtle roll, low to high).
+  // Play a chord as a block — all notes attacked simultaneously, the way
+  // a pianist plays a chord with one hand stroke. The previous version
+  // staggered notes by 14ms each (a low-to-high roll, inherited from the
+  // guitar-strum logic in Fretionary). For piano it reads as a stutter
+  // rather than a flourish, so we fire every note in parallel and let the
+  // OS-level scheduling latency be the only spread.
   //
-  // We deliberately don't stop previously-ringing notes from the prior chord.
-  // Earlier attempts to do that — both "stop everything" and "stop unique-
-  // to-previous" — dropped freshly-attacked notes in some progressions
-  // (F → Am with A3/C4 going silent). The likeliest cause is that stopAsync
-  // + replayAsync interactions on iOS' shared audio session are racy enough
-  // that some new notes never actually start.
-  //
-  // replayAsync alone is atomic and reliable: it resets the position and
-  // plays in one native call, regardless of whether the sound was idle or
-  // ringing. Old notes ring out naturally on their fade-out tail (samples
-  // are 3.5s with 1s fade), and by the third chord most of the first
-  // chord's energy is gone.
+  // We don't pre-stop the previous chord's notes — every variant of
+  // stopAsync we tried ended up dropping freshly-attacked notes on iOS.
+  // replayAsync is atomic and reliable; old notes ring out naturally on
+  // their fade-out tail (3.5s samples with 1s fade), and polyphony stays
+  // bounded since older chords have faded by the third one.
   const playChord = useCallback(async (notes: number[]) => {
-    const sorted = [...notes].sort((a, b) => a - b);
-    await Promise.all(
-      sorted.map((midi, i) =>
-        new Promise<void>(resolve => {
-          setTimeout(() => { playMidi(midi).then(resolve); }, i * 14);
-        })
-      )
-    );
+    await Promise.all(notes.map(midi => playMidi(midi)));
   }, [playMidi]);
 
   const stopProgression = useCallback(() => {
