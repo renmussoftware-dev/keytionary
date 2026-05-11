@@ -16,7 +16,7 @@ import { useAudioEngine } from '../../src/hooks/useAudioEngine';
 import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isChordFree } from '../../src/constants/subscription';
-import { getChordMidi } from '../../src/utils/theory';
+import { getChordMidi, maxInversion, getInversionBass } from '../../src/utils/theory';
 import { getResolutions } from '../../src/constants/resolutions';
 import HeartButton from '../../src/components/HeartButton';
 import SavedSheet from '../../src/components/SavedSheet';
@@ -38,15 +38,24 @@ export default function ChordsScreen() {
   const { playChord } = useAudioEngine();
   const [category, setCategory] = useState('All');
   const [selectedChord, setSelectedChord] = useState('Major');
+  const [selectedInversion, setSelectedInversion] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
 
   useEffect(() => {
     if (pendingNav?.kind === 'chord') {
       setSelectedChord(pendingNav.chordKey);
+      setSelectedInversion(0);
       setPendingNav(null);
     }
   }, [pendingNav, setPendingNav]);
+
+  // Clamp inversion when chord changes — e.g. moving from a 7th chord (max
+  // 3rd inv) back to a triad (max 2nd inv) needs to drop 3rd inv.
+  useEffect(() => {
+    const max = Math.min(maxInversion(selectedChord), 3);
+    if (selectedInversion > max) setSelectedInversion(0);
+  }, [selectedChord, selectedInversion]);
 
   const drawerAnim = useRef(new Animated.Value(0)).current;
   const scrimAnim = useRef(new Animated.Value(0)).current;
@@ -106,9 +115,11 @@ export default function ChordsScreen() {
   function selectChord(key: string) {
     const apply = () => {
       setSelectedChord(key);
+      const newInv = Math.min(selectedInversion, Math.min(maxInversion(key), 3));
+      setSelectedInversion(newInv);
       addRecent({ kind: 'chord', root, chordKey: key });
       closeDrawer();
-      playChord(getChordMidi(root, key));
+      playChord(getChordMidi(root, key, 4, newInv));
     };
     if (!isChordFree(key)) { requirePro(apply); return; }
     apply();
@@ -119,11 +130,19 @@ export default function ChordsScreen() {
     const apply = () => {
       setRoot(newRoot);
       setSelectedChord(targetType);
+      // Resolutions cross chord boundaries — reset inversion to root position
+      // so the new chord lands in its natural voicing.
+      setSelectedInversion(0);
       addRecent({ kind: 'chord', root: newRoot, chordKey: targetType });
       playChord(getChordMidi(newRoot, targetType));
     };
     if (!isChordFree(targetType)) { requirePro(apply); return; }
     apply();
+  }
+
+  function pickInversion(n: number) {
+    setSelectedInversion(n);
+    playChord(getChordMidi(root, selectedChord, 4, n));
   }
 
   const filteredChords = Object.entries(CHORDS).filter(([, ch]) =>
@@ -153,7 +172,7 @@ export default function ChordsScreen() {
             <TouchableOpacity key={note} onPress={() => {
                 setRoot(i);
                 addRecent({ kind: 'chord', root: i, chordKey: selectedChord });
-                playChord(getChordMidi(i, selectedChord));
+                playChord(getChordMidi(i, selectedChord, 4, selectedInversion));
               }}
               style={[styles.notePill, root === i && styles.notePillActive]} activeOpacity={0.7}>
               <Text style={[styles.noteText, root === i && styles.noteTextActive]}>{NOTE_DISPLAY[note] || note}</Text>
@@ -180,14 +199,48 @@ export default function ChordsScreen() {
               {chord && <Text style={styles.detailEyebrow}>{categoryLabel(chord.category)}</Text>}
               <Text style={[styles.detailTitle, isTablet && styles.detailTitleTablet]}>
                 {NOTES[root]} {selectedChord}
+                {selectedInversion > 0 && (
+                  <Text style={styles.detailTitleSlash}>
+                    {' '}/ {NOTES[getInversionBass(root, selectedChord, selectedInversion)]}
+                  </Text>
+                )}
               </Text>
             </View>
             <HeartButton item={{ kind: 'chord', root, chordKey: selectedChord }} size="md" />
           </View>
           <Text style={styles.detailDesc}>{chord?.description}</Text>
 
+          {/* Inversion selector — capped at min(chord size - 1, 3) since
+              higher inversions get esoteric. */}
+          {chord && chord.intervals.length >= 2 && (() => {
+            const invMax = Math.min(maxInversion(selectedChord), 3);
+            const labels = ['Root', '1st', '2nd', '3rd'];
+            return (
+              <View style={styles.inversionRow}>
+                {Array.from({ length: invMax + 1 }, (_, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => pickInversion(i)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.invPill,
+                      selectedInversion === i && styles.invPillActive,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.invPillText,
+                      selectedInversion === i && styles.invPillTextActive,
+                    ]}>
+                      {labels[i]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            );
+          })()}
+
           <View style={styles.diagramCard}>
-            <PianoChordBox root={root} chordKey={selectedChord} />
+            <PianoChordBox root={root} chordKey={selectedChord} inversion={selectedInversion} />
           </View>
 
           {chord && (
@@ -373,7 +426,35 @@ const styles = StyleSheet.create({
                      },
   detailTitle:       { fontSize: 36, fontWeight: '700', color: COLORS.text, letterSpacing: -1, lineHeight: 40 },
   detailTitleTablet: { fontSize: 52, lineHeight: 56 },
+  // Slash-chord bass note rendered slightly muted so the main chord name
+  // stays the primary reading cue — "C Major" big, " / E" softer.
+  detailTitleSlash:  { color: COLORS.textMuted, fontWeight: '600' },
   detailDesc:        { fontSize: 14, color: COLORS.textMuted, lineHeight: 21, marginBottom: SPACE.xl },
+
+  // Inversion pill row — sits between description and diagram so it reads as
+  // "this chord at this voicing → what the diagram shows you".
+  inversionRow:      {
+                       flexDirection: 'row',
+                       gap: 6,
+                       marginBottom: SPACE.lg,
+                     },
+  invPill:           {
+                       paddingHorizontal: 14, paddingVertical: 7,
+                       borderRadius: RADIUS.full,
+                       backgroundColor: COLORS.surface,
+                       borderWidth: 1, borderColor: COLORS.border,
+                     },
+  invPillActive:     {
+                       backgroundColor: COLORS.accentSoft,
+                       borderColor: COLORS.accent,
+                     },
+  invPillText:       {
+                       fontSize: 12, fontWeight: '600',
+                       color: COLORS.textMuted,
+                       fontFamily: FONT_FAMILY.mono,
+                       letterSpacing: 0.4,
+                     },
+  invPillTextActive: { color: COLORS.text },
 
   diagramCard:       {
                        backgroundColor: COLORS.surface,

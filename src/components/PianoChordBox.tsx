@@ -1,15 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { Rect, Circle, Text as SvgText, G } from 'react-native-svg';
-import { COLORS, RADIUS, SPACE, FONT_FAMILY } from '../constants/theme';
+import { COLORS, SPACE, FONT_FAMILY } from '../constants/theme';
 import { NOTES, CHORDS, isBlackKey, COLORS as MUSIC_COLORS } from '../constants/music';
-import { getChordNotes } from '../utils/theory';
+import { getChordMidi } from '../utils/theory';
 
 interface Props {
   root: number;
   chordKey: string;
   compact?: boolean;
+  // Inversion index — 0 = root position, 1 = 1st inv, etc. Clamped internally
+  // by getChordMidi to the chord's valid range.
+  inversion?: number;
 }
+
+// Bottom-left C of the diagram represents MIDI 48 (C3 in standard MIDI
+// convention). This matches getChordMidi's default baseOctave=4 so every
+// chord at default octave lands inside the visible range.
+const BASE_MIDI = 48;
 
 const KEY_X_IN_OCTAVE: Record<number, number> = {
   0: 0,    1: 0.7,  2: 1,    3: 1.7,  4: 2,
@@ -20,7 +28,7 @@ const WHITE_KEYS_PER_OCTAVE = 7;
 const BLACK_KEY_WIDTH_RATIO = 0.62;
 const BLACK_KEY_HEIGHT_RATIO = 0.62;
 
-export default function PianoChordBox({ root, chordKey, compact = false }: Props) {
+export default function PianoChordBox({ root, chordKey, compact = false, inversion = 0 }: Props) {
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
 
@@ -45,14 +53,25 @@ export default function PianoChordBox({ root, chordKey, compact = false }: Props
       </View>
     );
   }
-  const chordNoteClasses = new Set(getChordNotes(root, chordKey));
+
+  // Highlight the specific MIDI notes of the inversion's voicing — not every
+  // octave of the chord's note classes. This is what makes an inversion
+  // actually *look* different on the keyboard.
+  const chordMidiSet = new Set(getChordMidi(root, chordKey, 4, inversion));
 
   function noteX(noteClass: number, octaveIdx: number): number {
     return PAD + (octaveIdx * WHITE_KEYS_PER_OCTAVE + KEY_X_IN_OCTAVE[noteClass]) * whiteKeyW;
   }
 
+  function visibleMidi(octaveIdx: number, noteClass: number): number {
+    return BASE_MIDI + octaveIdx * 12 + noteClass;
+  }
+
+  // Color is still keyed off the note's interval role in the underlying chord
+  // (root / 3rd / 5th / extension), not its position in the inversion. So in
+  // C/E the E is still red (it's still the 3rd of the chord) even though it's
+  // the bass note of this voicing.
   function getNoteColor(noteClass: number) {
-    if (!chordNoteClasses.has(noteClass)) return null;
     if (noteClass === root) return { ...MUSIC_COLORS.root, isRoot: true };
     const intv = (noteClass - root + 12) % 12;
     const ci = ch.intervals.map(i => i % 12);
@@ -122,8 +141,10 @@ export default function PianoChordBox({ root, chordKey, compact = false }: Props
           />
         ))}
 
-        {/* Highlighted notes */}
+        {/* Highlighted notes — only the specific MIDI notes of the voicing */}
         {[...whiteNotes, ...blackNotes].map(({ octaveIdx, noteClass }) => {
+          const midi = visibleMidi(octaveIdx, noteClass);
+          if (!chordMidiSet.has(midi)) return null;
           const col = getNoteColor(noteClass);
           if (!col) return null;
           const isBlack = isBlackKey(noteClass);
