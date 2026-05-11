@@ -82,6 +82,13 @@ const AUDIO_FILES: Record<string, any> = {
 
 export function useAudioEngine() {
   const soundsRef = useRef<Record<string, Sound>>({});
+  // Sounds currently ringing from the most recent playChord. We stop these
+  // before starting the next chord so iOS' simultaneous-sound channels don't
+  // pile up across a long progression — at 80 BPM with 3.5s piano samples,
+  // every previous chord's notes are still playing when the new one starts,
+  // and once the channel count gets high enough new playback calls drop
+  // silently on iOS.
+  const activeSoundsRef = useRef<Set<Sound>>(new Set());
   const loadedRef = useRef(false);
   const progressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -144,16 +151,33 @@ export function useAudioEngine() {
 
     if (!sound) return;
     try {
-      await sound.setPositionAsync(0);
-      await sound.playAsync();
+      // replayAsync resets position to 0 and plays in one atomic call,
+      // regardless of whether the sound is currently playing or stopped.
+      // setPositionAsync(0) + playAsync() races on already-playing sounds —
+      // the seek can happen after the resume kicks in, so a shared note
+      // between chords wouldn't actually re-attack.
+      activeSoundsRef.current.add(sound);
+      await sound.replayAsync();
     } catch {
       // ignore playback errors
     }
   }, []);
 
+  // Stop every sound currently ringing from the most recent chord. Called at
+  // the start of playChord so chords don't pile up channels across a
+  // progression. Failures are swallowed — if a sound was already stopped or
+  // unloaded, we don't care.
+  const stopActive = useCallback(async () => {
+    const sounds = Array.from(activeSoundsRef.current);
+    activeSoundsRef.current.clear();
+    await Promise.all(sounds.map(s => s.stopAsync().catch(() => {})));
+  }, []);
+
   // Play a chord as a near-simultaneous arpeggio (subtle roll, low to high).
-  // notes are absolute MIDI numbers.
+  // notes are absolute MIDI numbers. Previous chord's notes are stopped
+  // first so each chord rings cleanly without polyphony pile-up.
   const playChord = useCallback(async (notes: number[]) => {
+    await stopActive();
     const sorted = [...notes].sort((a, b) => a - b);
     await Promise.all(
       sorted.map((midi, i) =>
@@ -162,7 +186,7 @@ export function useAudioEngine() {
         })
       )
     );
-  }, [playMidi]);
+  }, [playMidi, stopActive]);
 
   const stopProgression = useCallback(() => {
     if (progressionTimerRef.current) {
