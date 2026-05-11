@@ -80,8 +80,22 @@ const AUDIO_FILES: Record<string, any> = {
   'Gb6': require('../../assets/audio/Gb6.mp3'),
 };
 
+// Each note holds a small pool of Sound instances. Playing a note advances
+// a per-note round-robin index, so consecutive plays of the same note hit
+// different Sound objects. A previous attack rings out naturally on its
+// original instance while the new attack hits a fresh one — the only way
+// to avoid the interrupt-while-playing race that drops notes on iOS at
+// progression speed.
+//
+// Pool size 3 covers any progression where the same note appears in up to
+// 3 chords within ~3.5s (the sample's effective duration). By the time the
+// pool wraps back to instance 0, its original playback is past the sample
+// length and fully silent — no audible interference.
+const POOL_SIZE = 3;
+
 export function useAudioEngine() {
-  const soundsRef = useRef<Record<string, Sound>>({});
+  const soundsRef = useRef<Record<string, Sound[]>>({});
+  const poolIdxRef = useRef<Record<string, number>>({});
   const loadedRef = useRef(false);
   const progressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -95,21 +109,29 @@ export function useAudioEngine() {
       });
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const loaded: Record<string, Sound> = {};
+      const loaded: Record<string, Sound[]> = {};
       const entries = Object.entries(AUDIO_FILES);
+      // Each load is one createAsync, and we need POOL_SIZE per name. Batch
+      // the unrolled list to keep iOS from getting overwhelmed.
+      const tasks: { name: string; src: any }[] = [];
+      for (const [name, src] of entries) {
+        for (let i = 0; i < POOL_SIZE; i++) tasks.push({ name, src });
+      }
       const BATCH_SIZE = 10;
-      for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-        const batch = entries.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+        const batch = tasks.slice(i, i + BATCH_SIZE);
         await Promise.all(
-          batch.map(async ([name, src]) => {
+          batch.map(async ({ name, src }) => {
             try {
               const { sound } = await Audio.Sound.createAsync(
                 src,
                 { shouldPlay: false, volume: 1.0, progressUpdateIntervalMillis: 100 }
               );
-              loaded[name] = sound;
+              if (!loaded[name]) loaded[name] = [];
+              loaded[name].push(sound);
             } catch {
-              // skip missing files silently
+              // skip — if a few instances fail to load, the remaining pool
+              // still lets the note play.
             }
           })
         );
@@ -120,32 +142,40 @@ export function useAudioEngine() {
     loadAll();
 
     return () => {
-      Object.values(soundsRef.current).forEach(s => s.unloadAsync());
+      for (const pool of Object.values(soundsRef.current)) {
+        for (const s of pool) s.unloadAsync().catch(() => {});
+      }
       if (progressionTimerRef.current) clearTimeout(progressionTimerRef.current);
     };
   }, []);
 
-  // Play a single note. Always uses replayAsync — the documented atomic
-  // "reset position and play" API that works whether the sound is currently
-  // playing or stopped. Lazy-loads the sample if it wasn't preloaded.
+  // Play a single note. Picks the next Sound from this note's pool (round-
+  // robin), then replayAsyncs it. The previous instance keeps ringing on its
+  // own; we never interrupt an in-flight playback.
   const playMidi = useCallback(async (midi: number) => {
     const name = midiToFilename(midi);
-    let sound = soundsRef.current[name];
+    let pool = soundsRef.current[name];
 
-    if (!sound && AUDIO_FILES[name]) {
+    // Lazy-load a single instance if nothing is preloaded for this note
+    // (rare — only for notes outside the bundled range).
+    if ((!pool || pool.length === 0) && AUDIO_FILES[name]) {
       try {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, allowsRecordingIOS: false, staysActiveInBackground: false });
         const { sound: newSound } = await Audio.Sound.createAsync(
           AUDIO_FILES[name], { shouldPlay: false, volume: 1.0 }
         );
-        soundsRef.current[name] = newSound;
-        sound = newSound;
+        soundsRef.current[name] = [newSound];
+        pool = soundsRef.current[name];
       } catch {
         return;
       }
     }
 
-    if (!sound) return;
+    if (!pool || pool.length === 0) return;
+    const idx = (poolIdxRef.current[name] ?? 0) % pool.length;
+    poolIdxRef.current[name] = idx + 1;
+    const sound = pool[idx];
+
     try {
       await sound.replayAsync();
     } catch {
