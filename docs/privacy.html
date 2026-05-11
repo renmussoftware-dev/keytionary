@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Keytionary</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --border: #222228;
+    --gold: #e8c84d;
+    --text: #f0ede8;
+    --muted: #7a7870;
+    --faint: #3a3835;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,11,0.9);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .nav-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--gold); }
+
+  .nav-back {
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s;
+  }
+
+  .nav-back:hover { color: var(--text); }
+
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 32px 120px;
+  }
+
+  .page-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(36px, 5vw, 52px);
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+  }
+
+  .meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 56px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .content {
+    border-top: 1px solid var(--border);
+    padding-top: 48px;
+  }
+
+  h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    margin-top: 48px;
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
+  }
+
+  h2:first-child { margin-top: 0; }
+
+  p { color: var(--muted); margin-bottom: 16px; }
+
+  ul {
+    list-style: none;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  ul li {
+    color: var(--muted);
+    padding-left: 20px;
+    position: relative;
+  }
+
+  ul li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: var(--faint);
+  }
+
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .highlight {
+    background: rgba(232,200,77,0.06);
+    border: 1px solid rgba(232,200,77,0.15);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 32px 0;
+  }
+
+  .highlight p { color: var(--text); margin: 0; font-size: 14px; }
+  .highlight strong { color: var(--gold); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--faint);
+  }
+
+  .footer-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--muted);
+  }
+
+  .footer-logo span { color: var(--gold); }
+
+  @media (max-width: 600px) {
+    nav { padding: 16px 20px; }
+    main { padding: 40px 20px 80px; }
+    footer { padding: 24px 20px; flex-direction: column; gap: 8px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">Keytionary<span>.</span></a>
+  <a href="/" class="nav-back">← Back to home</a>
+</nav>
+
+<main>
+  <span class="page-label">Legal</span>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Last updated: May 11, 2026 &nbsp;·&nbsp; Renmus Software LLC</p>
+
+  <div class="content">
+
+    <div class="highlight">
+      <p><strong>The short version:</strong> Keytionary does not collect, store, or sell your personal data. The app works entirely on your device. We don't track you.</p>
+    </div>
+
+    <h2>Who We Are</h2>
+    <p>Keytionary is a piano theory reference app developed and published by Renmus Software LLC, a Florida limited liability company. If you have any questions about this policy, contact us at <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a>.</p>
+
+    <h2>Information We Do Not Collect</h2>
+    <p>Keytionary is designed to work entirely on your device without requiring an account or transmitting your data to our servers. We do not collect:</p>
+    <ul>
+      <li>Your name, email address, or any personal identifiers</li>
+      <li>Your location or device GPS data</li>
+      <li>Your usage patterns, session data, or analytics</li>
+      <li>Your contacts, photos, camera, or microphone data</li>
+      <li>Any health or financial information</li>
+    </ul>
+
+    <h2>Subscription Purchases</h2>
+    <p>Keytionary offers optional in-app purchases (monthly, annual, and lifetime subscriptions) processed entirely through Apple's App Store. We never see or store your payment information. All billing is handled by Apple under their own privacy policy and terms of service.</p>
+    <p>We use <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat</a> to manage subscription entitlements. RevenueCat receives a hashed, anonymous identifier to verify your subscription status. No personally identifiable information is shared. You can review RevenueCat's privacy policy at revenuecat.com/privacy.</p>
+
+    <h2>Local Data Storage</h2>
+    <p>Keytionary stores your preferences (selected root note, scale, chord, label mode, favorites, recents) locally on your device using standard iOS storage. This data never leaves your device and is deleted when you uninstall the app.</p>
+
+    <h2>Audio</h2>
+    <p>The app includes pre-recorded piano note samples bundled within the app itself. These samples play back locally on your device. We do not access your microphone and no audio is transmitted anywhere.</p>
+
+    <h2>Children's Privacy</h2>
+    <p>Keytionary is rated 4+ on the App Store and is suitable for all ages. We do not knowingly collect any information from children or any other users, as described in this policy.</p>
+
+    <h2>Third-Party Services</h2>
+    <p>The app integrates with the following third-party services:</p>
+    <ul>
+      <li><strong>Apple App Store</strong> — for app distribution and in-app purchases</li>
+      <li><strong>RevenueCat</strong> — for subscription management (anonymous identifiers only)</li>
+    </ul>
+    <p>We do not integrate with any advertising networks, analytics platforms, social media SDKs, or crash reporting tools.</p>
+
+    <h2>Data Security</h2>
+    <p>Because we do not collect or transmit your personal data, there is no data stored on our servers that could be compromised. All app data remains on your device under Apple's standard iOS security protections.</p>
+
+    <h2>Changes to This Policy</h2>
+    <p>We may update this privacy policy from time to time. When we do, we will update the "Last updated" date at the top of this page. Continued use of the app after any changes constitutes your acceptance of the updated policy.</p>
+
+    <h2>Your Rights</h2>
+    <p>Since we do not collect personal data, there is nothing to access, correct, or delete. If you have questions or concerns, contact us at <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a> and we will respond within 30 days.</p>
+
+    <h2>Contact</h2>
+    <p>Renmus Software LLC<br>
+    Florida, United States<br>
+    <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a></p>
+
+  </div>
+</main>
+
+<footer>
+  <div class="footer-logo">Keytionary<span>.</span></div>
+  <div>© 2026 Renmus Software LLC · <a href="/" style="color:var(--faint)">Home</a> · <a href="/terms" style="color:var(--faint)">Terms</a></div>
+</footer>
+
+</body>
+</html>

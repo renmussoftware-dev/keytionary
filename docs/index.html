@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keytionary — Piano Theory, Visualized on the Keys</title>
+<meta name="description" content="The most visual, interactive piano theory companion. Scales, chords, progressions, and real piano audio — all on an interactive keyboard.">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --surface2: #18181d;
+    --border: #222228;
+    --gold: #e8c84d;
+    --gold-dim: #c4a020;
+    --gold-faint: rgba(232,200,77,0.08);
+    --red: #e24b4a;
+    --green: #1d9e75;
+    --blue: #378add;
+    --purple: #9664dc;
+    --text: #f0ede8;
+    --muted: #7a7870;
+    --faint: #3a3835;
+    --radius: 14px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.6;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    background: rgba(10,10,11,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .nav-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--gold); }
+
+  .nav-links {
+    display: flex;
+    gap: 36px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--gold);
+    color: #1a1400;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 20px;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .nav-cta:hover { opacity: 0.85; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 120px 48px 80px;
+  }
+
+  /* Animated piano-key backdrop */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .key-bar {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+    animation: keyPulse var(--dur) ease-in-out infinite;
+    animation-delay: var(--delay);
+    opacity: 0.5;
+  }
+
+  @keyframes keyPulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* Floating note labels */
+  .note-dot {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    animation: floatNote var(--fdur) ease-in-out infinite;
+    animation-delay: var(--fdelay);
+    opacity: 0;
+  }
+
+  @keyframes floatNote {
+    0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+    20%, 80% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-10px) scale(0.8); }
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    max-width: 780px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gold-faint);
+    border: 1px solid rgba(232,200,77,0.2);
+    border-radius: 100px;
+    padding: 6px 14px;
+    margin-bottom: 32px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .hero-badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(52px, 7vw, 88px);
+    line-height: 1.0;
+    letter-spacing: -2px;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .hero-sub {
+    font-size: 18px;
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 540px;
+    margin: 0 auto 44px;
+    font-weight: 400;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: #1a1400;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px 32px;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 40px rgba(232,200,77,0.25);
+  }
+
+  .btn-secondary {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s;
+  }
+
+  .btn-secondary:hover { color: var(--text); }
+
+  /* "Coming soon" inline badge for the CTAs while pre-launch */
+  .soon-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #1a1400;
+    background: rgba(0,0,0,0.18);
+    border-radius: 100px;
+    padding: 2px 8px;
+    margin-left: 4px;
+  }
+
+  /* ── KEYBOARD DEMO ── */
+  .keyboard-section {
+    padding: 80px 48px;
+    position: relative;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .keyboard-demo {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .keyboard-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .keyboard-title {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .mode-pills {
+    display: flex;
+    gap: 6px;
+  }
+
+  .mode-pill {
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .mode-pill.active {
+    background: var(--gold-faint);
+    border-color: rgba(232,200,77,0.3);
+    color: var(--gold);
+  }
+
+  .keyboard-svg-wrap {
+    padding: 32px 24px;
+    background: #0d0d10;
+  }
+
+  /* ── FEATURES GRID ── */
+  .features-section {
+    padding: 80px 48px;
+  }
+
+  .features-header {
+    max-width: 560px;
+    margin-bottom: 60px;
+  }
+
+  h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(36px, 4vw, 52px);
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    padding: 36px 32px;
+    transition: background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .feature-card:hover { background: var(--surface2); }
+  .feature-card:hover::before { opacity: 1; }
+
+  .feature-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    background: var(--icon-bg, var(--gold-faint));
+    border: 1px solid var(--icon-border, rgba(232,200,77,0.15));
+  }
+
+  .feature-card h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    margin-bottom: 10px;
+    letter-spacing: -0.3px;
+  }
+
+  .feature-card p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  /* ── CHORD DIAGRAM SHOWCASE ── */
+  .chord-section {
+    padding: 80px 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .chord-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 48px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+
+  .chord-row::-webkit-scrollbar { display: none; }
+
+  .chord-card {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 20px;
+    width: 220px;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: default;
+  }
+
+  .chord-card:hover {
+    border-color: rgba(232,200,77,0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+  }
+
+  .chord-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .chord-type {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .mini-chord {
+    width: 100%;
+    height: 96px;
+  }
+
+  /* ── INTERVAL COLORS SECTION ── */
+  .colors-section {
+    padding: 80px 48px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .colors-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .color-swatches {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .color-swatch {
+    border-radius: 14px;
+    padding: 24px 20px;
+    border: 1px solid;
+    transition: all 0.3s;
+  }
+
+  .color-swatch:hover { transform: translateY(-3px); }
+
+  .swatch-dot {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 14px;
+    border: 1px solid;
+  }
+
+  .swatch-label {
+    font-family: 'DM Serif Display', serif;
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .swatch-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── PROGRESSIONS ── */
+  .progressions-section {
+    padding: 80px 48px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .prog-list {
+    margin-top: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .prog-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--surface);
+    border-radius: 10px;
+    transition: background 0.2s;
+    cursor: default;
+  }
+
+  .prog-item:hover { background: var(--surface2); }
+
+  .prog-item-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .prog-genre {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    width: 60px;
+  }
+
+  .prog-name { font-size: 14px; font-weight: 500; }
+
+  .prog-numerals { display: flex; gap: 6px; }
+
+  .prog-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  /* ── PRICING ── */
+  .pricing-section {
+    padding: 80px 48px;
+    text-align: center;
+  }
+
+  .pricing-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    max-width: 1180px;
+    margin: 56px auto 0;
+  }
+
+  .pricing-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 28px;
+    text-align: left;
+    position: relative;
+    transition: all 0.2s;
+  }
+
+  .pricing-card.featured {
+    border-color: rgba(232,200,77,0.4);
+    background: linear-gradient(135deg, rgba(232,200,77,0.06), rgba(232,200,77,0.02));
+  }
+
+  .pricing-card:hover { transform: translateY(-4px); }
+
+  .pricing-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gold);
+    color: #1a1400;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 100px;
+  }
+
+  .pricing-tier {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .pricing-price {
+    font-family: 'DM Serif Display', serif;
+    font-size: 38px;
+    margin-bottom: 4px;
+    letter-spacing: -1px;
+  }
+
+  .pricing-per {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  .pricing-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .pricing-features li {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+  }
+
+  .pricing-features li::before {
+    content: '✓';
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .pricing-btn {
+    display: block;
+    text-align: center;
+    padding: 12px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .pricing-card.featured .pricing-btn {
+    background: var(--gold);
+    color: #1a1400;
+    border-color: var(--gold);
+  }
+
+  .pricing-btn:hover { opacity: 0.8; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--muted);
+  }
+
+  .footer-logo span { color: var(--gold); }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    font-size: 12px;
+  }
+
+  .footer-links a {
+    color: var(--faint);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--muted); }
+
+  .footer-copy {
+    font-size: 12px;
+    color: var(--faint);
+  }
+
+  /* ── SCROLL ANIMATIONS ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ── HAMBURGER ── */
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    z-index: 200;
+  }
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+    transform-origin: center;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .mobile-menu {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,11,0.97);
+    backdrop-filter: blur(20px);
+    z-index: 150;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .mobile-menu.open { opacity: 1; pointer-events: all; }
+  .mobile-menu a {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 12px 32px;
+    transition: color 0.15s;
+    letter-spacing: -0.5px;
+  }
+  .mobile-menu a:hover { color: var(--text); }
+  .mobile-menu .mobile-cta {
+    margin-top: 24px;
+    background: var(--gold);
+    color: #1a1400;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px 40px;
+    border-radius: 100px;
+    letter-spacing: 0;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) {
+    .pricing-cards { grid-template-columns: repeat(2, 1fr); max-width: 720px; }
+  }
+  @media (max-width: 900px) {
+    nav { padding: 16px 24px; }
+    .nav-links, .nav-cta { display: none; }
+    .nav-hamburger { display: flex; }
+    .mobile-menu { display: flex; }
+    .hero { padding: 100px 24px 60px; }
+    .features-section, .chord-section, .colors-section, .progressions-section, .pricing-section, .keyboard-section { padding: 60px 24px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .colors-inner { grid-template-columns: 1fr; gap: 40px; }
+    .color-swatches { grid-template-columns: repeat(2, 1fr); }
+    .pricing-cards { grid-template-columns: 1fr; max-width: 380px; }
+    footer { flex-direction: column; gap: 16px; text-align: center; padding: 32px 24px; }
+    .footer-links { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">Keytionary<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#chords">Chords</a></li>
+    <li><a href="#colors">Color System</a></li>
+    <li><a href="#progressions">Progressions</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="nav-cta" target="_blank" rel="noopener">Download Free</a>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#features" class="mobile-link">Features</a>
+  <a href="#chords" class="mobile-link">Chords</a>
+  <a href="#colors" class="mobile-link">Color System</a>
+  <a href="#progressions" class="mobile-link">Progressions</a>
+  <a href="#pricing" class="mobile-link">Pricing</a>
+  <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="mobile-cta mobile-link" target="_blank" rel="noopener">Download Free</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg">
+    <div id="keyBars"></div>
+    <div id="noteDots"></div>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      Piano Theory App
+    </div>
+    <h1>Every chord<br>and scale —<br><em>on the keys.</em></h1>
+    <p class="hero-sub">
+      The most visual, interactive piano theory companion. Scales, chords, and real progressions — color-coded and mapped right onto the keyboard.
+    </p>
+    <div class="hero-actions">
+      <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="btn-primary" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        App Store
+      </a>
+      <a href="#features" class="btn-secondary">
+        See all features →
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- INTERACTIVE KEYBOARD DEMO -->
+<section class="keyboard-section reveal" id="features">
+  <div style="max-width:900px;margin:0 auto">
+    <span class="section-label">Interactive Keyboard</span>
+    <h2 style="margin-bottom:32px">See the whole<br>keyboard at once</h2>
+  </div>
+  <div class="keyboard-demo reveal">
+    <div class="keyboard-header">
+      <span class="keyboard-title">C Major — Color-coded by interval</span>
+      <div class="mode-pills">
+        <span class="mode-pill active">Scales</span>
+        <span class="mode-pill">Chords</span>
+        <span class="mode-pill">Custom</span>
+      </div>
+    </div>
+    <div class="keyboard-svg-wrap">
+      <svg id="mainKeyboard" width="100%" height="220" viewBox="0 0 860 220" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES GRID -->
+<section class="features-section">
+  <div class="features-header reveal">
+    <span class="section-label">Everything you need</span>
+    <h2>Built for pianists<br>of every level</h2>
+  </div>
+  <div class="features-grid reveal">
+    <div class="feature-card" style="--accent-color:var(--gold);--icon-bg:rgba(232,200,77,0.08);--icon-border:rgba(232,200,77,0.2)">
+      <div class="feature-icon">🎹</div>
+      <h3>14 Scales &amp; Modes</h3>
+      <p>Major, minor, all 7 modes, pentatonic, blues, whole tone, and diminished. Every scale shows its formula, degrees, and lights up across the keyboard.</p>
+    </div>
+    <div class="feature-card" style="--accent-color:var(--red);--icon-bg:rgba(226,75,74,0.08);--icon-border:rgba(226,75,74,0.2)">
+      <div class="feature-icon">🎵</div>
+      <h3>35 Chord Types</h3>
+      <p>From basic triads to altered dominants and 13th jazz chords. Every chord is mapped onto the keys with the root, 3rd, 5th and extensions color-coded.</p>
+    </div>
+    <div class="feature-card" style="--accent-color:var(--purple);--icon-bg:rgba(150,100,220,0.08);--icon-border:rgba(150,100,220,0.2)">
+      <div class="feature-icon">✨</div>
+      <h3>Custom Mode</h3>
+      <p>Tap any combination of keys to highlight your own voicing. Build chords by ear, design scales from scratch, or experiment outside the boundaries of standard theory.</p>
+    </div>
+    <div class="feature-card" style="--accent-color:var(--green);--icon-bg:rgba(29,158,117,0.08);--icon-border:rgba(29,158,117,0.2)">
+      <div class="feature-icon">🎼</div>
+      <h3>22 Chord Progressions</h3>
+      <p>Named progressions across Pop, Rock, Blues, Jazz, and more — plus a custom builder that lets you stack any chord from any key. Hit Play and hear real piano audio.</p>
+    </div>
+    <div class="feature-card" style="--accent-color:var(--blue);--icon-bg:rgba(55,138,221,0.08);--icon-border:rgba(55,138,221,0.2)">
+      <div class="feature-icon">🔊</div>
+      <h3>Real Piano Audio</h3>
+      <p>Hear every chord with real sampled piano notes. Tap any chord in the library or let the progression player cycle through at your BPM with subtle arpeggio voicing.</p>
+    </div>
+    <div class="feature-card" style="--accent-color:var(--gold);--icon-bg:rgba(232,200,77,0.08);--icon-border:rgba(232,200,77,0.2)">
+      <div class="feature-icon">🥁</div>
+      <h3>Built-in Metronome</h3>
+      <p>BPM 40–240, six time signatures including 6/8 and 7/8, accent + offbeat clicks, tap-tempo, and a drift-corrected timer that stays steady even at 200+ BPM.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CHORD DIAGRAMS -->
+<section class="chord-section" id="chords">
+  <div class="reveal">
+    <span class="section-label">Chord Library</span>
+    <h2>Every chord.<br>Every key.</h2>
+    <p style="color:var(--muted);font-size:15px;margin-top:12px;max-width:480px;line-height:1.65">Light up any chord on the keyboard with the root, 3rd, 5th and extensions color-coded so the structure is instantly readable. 35 chord types from basic triads to 13ths.</p>
+  </div>
+  <div class="chord-row reveal" id="chordCards"></div>
+</section>
+
+<!-- COLOR / INTERVAL SYSTEM -->
+<section class="colors-section" id="colors">
+  <div class="colors-inner">
+    <div class="reveal">
+      <span class="section-label">Color System</span>
+      <h2>See the structure,<br>not just the notes.</h2>
+      <p style="color:var(--muted);font-size:15px;margin-top:16px;line-height:1.65;max-width:420px">
+        Every highlighted key is colored by its role in the chord or scale. Roots are gold. Thirds are red. Fifths are green. Extensions are blue. Train your eye to recognize chord shapes the way trained pianists hear them — as relationships, not just notes.
+      </p>
+      <div style="margin-top:32px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)">
+          <span style="color:var(--gold);font-weight:700;width:16px">✓</span> Toggle labels: note name, scale degree, or interval
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)">
+          <span style="color:var(--gold);font-weight:700;width:16px">✓</span> Works across 14 scales and 35 chord types
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)">
+          <span style="color:var(--gold);font-weight:700;width:16px">✓</span> Same palette across every screen for instant recognition
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)">
+          <span style="color:var(--gold);font-weight:700;width:16px">✓</span> Glow effect on the root note keeps you anchored
+        </div>
+      </div>
+    </div>
+    <div class="color-swatches reveal">
+      <div class="color-swatch" style="background:rgba(232,200,77,0.06);border-color:rgba(232,200,77,0.3)">
+        <div class="swatch-dot" style="background:#e8c84d;border-color:#c4a000;color:#5C4400">R</div>
+        <div class="swatch-label">Root</div>
+        <div class="swatch-sub">The anchor</div>
+      </div>
+      <div class="color-swatch" style="background:rgba(226,75,74,0.06);border-color:rgba(226,75,74,0.3)">
+        <div class="swatch-dot" style="background:#e24b4a;border-color:#a32d2d;color:#fff">3</div>
+        <div class="swatch-label">Third</div>
+        <div class="swatch-sub">Major or minor</div>
+      </div>
+      <div class="color-swatch" style="background:rgba(29,158,117,0.06);border-color:rgba(29,158,117,0.3)">
+        <div class="swatch-dot" style="background:#1d9e75;border-color:#0f6e56;color:#fff">5</div>
+        <div class="swatch-label">Fifth</div>
+        <div class="swatch-sub">The stability</div>
+      </div>
+      <div class="color-swatch" style="background:rgba(55,138,221,0.06);border-color:rgba(55,138,221,0.3)">
+        <div class="swatch-dot" style="background:#378add;border-color:#185fa5;color:#fff">+</div>
+        <div class="swatch-label">Extensions</div>
+        <div class="swatch-sub">7, 9, 11, 13</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROGRESSIONS -->
+<section class="progressions-section" id="progressions">
+  <div class="reveal">
+    <span class="section-label">Chord Progressions</span>
+    <h2>Hear how chords<br>work together</h2>
+    <p style="color:var(--muted);font-size:15px;margin-top:12px;max-width:480px;line-height:1.65">
+      22 progressions across every genre — plus a custom builder that lets you stack any chord from any key. Hit Play and hear real piano audio while the keyboard shows you every chord in sequence.
+    </p>
+  </div>
+  <div class="prog-list reveal">
+    <div class="prog-item">
+      <div class="prog-item-left">
+        <span class="prog-genre">Pop</span>
+        <span class="prog-name">I – V – vi – IV</span>
+      </div>
+      <div class="prog-numerals">
+        <span class="prog-num">I</span><span class="prog-num">V</span><span class="prog-num">vi</span><span class="prog-num">IV</span>
+      </div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-item-left">
+        <span class="prog-genre">Jazz</span>
+        <span class="prog-name">ii – V – I</span>
+      </div>
+      <div class="prog-numerals">
+        <span class="prog-num">ii</span><span class="prog-num">V</span><span class="prog-num">I</span>
+      </div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-item-left">
+        <span class="prog-genre">Blues</span>
+        <span class="prog-name">12-Bar Blues</span>
+      </div>
+      <div class="prog-numerals">
+        <span class="prog-num">I</span><span class="prog-num">IV</span><span class="prog-num">V</span><span class="prog-num">IV</span>
+      </div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-item-left">
+        <span class="prog-genre">Rock</span>
+        <span class="prog-name">I – IV – V</span>
+      </div>
+      <div class="prog-numerals">
+        <span class="prog-num">I</span><span class="prog-num">IV</span><span class="prog-num">V</span>
+      </div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-item-left">
+        <span class="prog-genre">Folk</span>
+        <span class="prog-name">I – vi – IV – V</span>
+      </div>
+      <div class="prog-numerals">
+        <span class="prog-num">I</span><span class="prog-num">vi</span><span class="prog-num">IV</span><span class="prog-num">V</span>
+      </div>
+    </div>
+    <div class="prog-item" style="border-top:1px solid var(--border);margin-top:2px;padding-top:16px">
+      <div class="prog-item-left">
+        <span class="prog-genre" style="color:var(--gold)">+ 17 more</span>
+        <span class="prog-name" style="color:var(--muted)">Country, R&amp;B, Modal, and more — plus your own custom builds</span>
+      </div>
+      <a href="#pricing" style="font-size:12px;color:var(--gold);text-decoration:none;font-weight:600">Explore →</a>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="reveal">
+    <span class="section-label">Simple pricing</span>
+    <h2>Start free.<br>Go deeper when you're ready.</h2>
+  </div>
+  <div class="pricing-cards">
+    <div class="pricing-card reveal">
+      <div class="pricing-tier">Free</div>
+      <div class="pricing-price">$0</div>
+      <div class="pricing-per">forever</div>
+      <ul class="pricing-features">
+        <li>Interactive keyboard</li>
+        <li>4 essential scales</li>
+        <li>8 core chord types</li>
+        <li>4 starter progressions</li>
+        <li>Smart resolution hints</li>
+        <li>Favorites &amp; recents</li>
+      </ul>
+      <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="pricing-btn" target="_blank" rel="noopener">Download Free</a>
+    </div>
+    <div class="pricing-card reveal">
+      <div class="pricing-tier">Monthly</div>
+      <div class="pricing-price">$5<span style="font-size:18px">.99</span></div>
+      <div class="pricing-per">per month</div>
+      <ul class="pricing-features">
+        <li>Everything in Free</li>
+        <li>All 14 scales &amp; modes</li>
+        <li>Full chord library (35 types)</li>
+        <li>All 22 progressions</li>
+        <li>Custom mode</li>
+        <li>Real piano audio playback</li>
+        <li>Built-in metronome</li>
+      </ul>
+      <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="pricing-btn" target="_blank" rel="noopener">Download Free</a>
+    </div>
+    <div class="pricing-card featured reveal">
+      <div class="pricing-badge">Best Value</div>
+      <div class="pricing-tier">Annual</div>
+      <div class="pricing-price">$29<span style="font-size:18px">.99</span></div>
+      <div class="pricing-per">per year — save 58% vs monthly</div>
+      <ul class="pricing-features">
+        <li>Everything in Monthly</li>
+        <li>2 months free vs paying monthly</li>
+        <li>Priority for new features</li>
+      </ul>
+      <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="pricing-btn" target="_blank" rel="noopener">Download Free</a>
+    </div>
+    <div class="pricing-card reveal">
+      <div class="pricing-tier">Lifetime</div>
+      <div class="pricing-price">$44<span style="font-size:18px">.99</span></div>
+      <div class="pricing-per">one-time payment</div>
+      <ul class="pricing-features">
+        <li>Everything in Annual</li>
+        <li>All future updates</li>
+        <li>No recurring charge</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="https://apps.apple.com/us/app/keytionary/id6768299362" class="pricing-btn" target="_blank" rel="noopener">Download Free</a>
+    </div>
+  </div>
+  <p style="margin-top:32px;font-size:12px;color:var(--faint)">Launching first on iOS. Android coming soon after.</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Keytionary<span>.</span></div>
+  <div class="footer-links">
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="mailto:hello@keytionary.com">Contact</a>
+  </div>
+  <div class="footer-copy">© 2026 Renmus Software LLC. All rights reserved.</div>
+</footer>
+
+<script>
+  // ── Hero piano-key bars (vertical lines hinting at piano keys) ──
+  const keyBars = document.getElementById('keyBars');
+  const barPositions = [6, 11, 17, 23, 30, 37, 44, 53, 62, 72, 82, 92];
+  barPositions.forEach((pct, i) => {
+    const el = document.createElement('div');
+    el.className = 'key-bar';
+    el.style.cssText = `left:${pct}%;--dur:${2.8 + i*0.3}s;--delay:${i*0.15}s`;
+    keyBars.appendChild(el);
+  });
+
+  // ── Floating note labels ──
+  const notes = ['C','E','G','D','F#','A','B♭','D♭','A♭','F'];
+  const noteColors = ['#e8c84d','#e24b4a','#1d9e75','#378add','#9664dc'];
+  const noteDots = document.getElementById('noteDots');
+  for (let i = 0; i < 12; i++) {
+    const el = document.createElement('div');
+    el.className = 'note-dot';
+    const size = 28 + Math.random() * 18;
+    const color = noteColors[Math.floor(Math.random() * noteColors.length)];
+    const left = 8 + Math.random() * 84;
+    const top = 14 + Math.random() * 72;
+    const dur = 3 + Math.random() * 4;
+    const delay = Math.random() * 5;
+    el.style.cssText = `width:${size}px;height:${size}px;left:${left}%;top:${top}%;background:${color}20;border:1.5px solid ${color}50;color:${color};--fdur:${dur}s;--fdelay:${delay}s;font-size:${size * 0.35}px`;
+    el.textContent = notes[i % notes.length];
+    noteDots.appendChild(el);
+  }
+
+  // ── Piano keyboard helpers ──
+  // Each octave: white keys at integer x positions, black keys offset.
+  // White-key class indices (within an octave): 0=C 2=D 4=E 5=F 7=G 9=A 11=B
+  // Black-key class indices: 1=C# 3=D# 6=F# 8=G# 10=A#
+  // KEY_X[noteClass] = left edge in white-key widths, within an octave.
+  const KEY_X = { 0:0, 1:0.7, 2:1, 3:1.7, 4:2, 5:3, 6:3.7, 7:4, 8:4.7, 9:5, 10:5.7, 11:6 };
+  const BLACK = new Set([1,3,6,8,10]);
+  const WHITE_PER_OCT = 7;
+  const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+  // Interval color palette (root / 3rd / 5th / extension / scale-tone)
+  const INTERVAL_COLOR = {
+    root:  { fill: '#e8c84d', stroke: '#c4a000', text: '#5C4400' },
+    third: { fill: '#e24b4a', stroke: '#a32d2d', text: '#fff' },
+    fifth: { fill: '#1d9e75', stroke: '#0f6e56', text: '#fff' },
+    ext:   { fill: '#378add', stroke: '#185fa5', text: '#fff' },
+    scale: { fill: '#3a3a46', stroke: '#52525f', text: '#ccc' },
+  };
+
+  // Categorise a semitone interval (relative to root) into a color bucket
+  // using chord/scale intervals as a fallback.
+  function bucketFor(intv, contextIntervals) {
+    if (intv === 0) return 'root';
+    if (intv === 3 || intv === 4) return 'third';
+    if (intv === 7) return 'fifth';
+    if (intv === 6 || intv === 8) return 'fifth';
+    if (intv === 10 || intv === 11) return 'ext';
+    if (intv === 1 || intv === 2 || intv === 5 || intv === 9) {
+      // Scale tones — show as scale gray
+      return 'scale';
+    }
+    return 'ext';
+  }
+
+  // Render a piano (whites then blacks) onto an existing SVG element.
+  // - svg: the target SVGElement
+  // - opts: { width, height, octaves, highlights, showLabels, baseOctave }
+  // highlights: array of { noteClass: 0..11, intervalBucket: 'root'|'third'|... , octaveIdx: 0|1 }
+  function renderPiano(svg, opts) {
+    const { width, height, octaves, highlights = [], showLabels = true, baseOctave = 3 } = opts;
+    // Clear svg
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const totalWhite = Math.ceil(octaves * WHITE_PER_OCT);
+    const padLeft = 8, padRight = 8, padTop = 8, padBottom = 22;
+    const whiteW = (width - padLeft - padRight) / totalWhite;
+    const whiteH = height - padTop - padBottom;
+    const blackW = whiteW * 0.62;
+    const blackH = whiteH * 0.62;
+
+    const NS = 'http://www.w3.org/2000/svg';
+    function el(name, attrs) {
+      const e = document.createElementNS(NS, name);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      svg.appendChild(e);
+      return e;
+    }
+
+    function noteX(noteClass, octaveIdx) {
+      return padLeft + (octaveIdx * WHITE_PER_OCT + KEY_X[noteClass]) * whiteW;
+    }
+
+    // White keys
+    const whiteClasses = [0, 2, 4, 5, 7, 9, 11];
+    const fullOct = Math.floor(octaves);
+    const partial = Math.round((octaves - fullOct) * WHITE_PER_OCT);
+    const whites = [];
+    for (let o = 0; o < fullOct; o++) whiteClasses.forEach(nc => whites.push({ o, nc }));
+    for (let i = 0; i < partial; i++) whites.push({ o: fullOct, nc: whiteClasses[i] });
+
+    whites.forEach(({ o, nc }) => {
+      el('rect', {
+        x: noteX(nc, o), y: padTop,
+        width: whiteW - 1, height: whiteH,
+        rx: 3, fill: '#f5f2ea', stroke: '#1a1a20', 'stroke-width': 0.6,
+      });
+    });
+
+    // Black keys (overlay)
+    const blackClasses = [1, 3, 6, 8, 10];
+    const blacks = [];
+    for (let o = 0; o < fullOct; o++) blackClasses.forEach(nc => blacks.push({ o, nc }));
+    if (partial > 0) {
+      for (const nc of blackClasses) {
+        if (KEY_X[nc] + 0.62 < partial) blacks.push({ o: fullOct, nc });
+      }
+    }
+    blacks.forEach(({ o, nc }) => {
+      el('rect', {
+        x: noteX(nc, o), y: padTop,
+        width: blackW, height: blackH,
+        rx: 2, fill: '#1a1a1f',
+      });
+    });
+
+    // Highlighted notes — dots near the bottom of each key
+    highlights.forEach(({ noteClass, intervalBucket, octaveIdx }) => {
+      const isBlack = BLACK.has(noteClass);
+      const col = INTERVAL_COLOR[intervalBucket] || INTERVAL_COLOR.scale;
+      const keyX = noteX(noteClass, octaveIdx);
+      const cx = isBlack ? keyX + blackW / 2 : keyX + (whiteW - 1) / 2;
+      const cy = isBlack ? padTop + blackH - 14 : padTop + whiteH - 18;
+      const r = Math.min(13, whiteW * 0.32);
+      // Glow on the root
+      if (intervalBucket === 'root') {
+        el('circle', { cx, cy, r: r + 6, fill: col.fill, opacity: 0.18 });
+      }
+      el('circle', { cx, cy, r, fill: col.fill, stroke: col.stroke, 'stroke-width': 1.4 });
+      if (showLabels) {
+        const lbl = el('text', {
+          x: cx, y: cy + 4,
+          'text-anchor': 'middle',
+          'font-size': r > 9 ? 10 : 8,
+          'font-weight': 700,
+          fill: col.text,
+          'font-family': 'DM Mono, monospace',
+        });
+        lbl.textContent = NOTE_NAMES[noteClass];
+      }
+    });
+
+    // Octave markers under each C
+    for (let o = 0; o < octaves; o++) {
+      const x = noteX(0, o) + (whiteW - 1) / 2;
+      const y = height - 6;
+      const t = el('text', {
+        x, y,
+        'text-anchor': 'middle',
+        'font-size': 9,
+        fill: '#3a3835',
+        'font-family': 'DM Mono, monospace',
+      });
+      t.textContent = 'C' + (baseOctave + o);
+    }
+  }
+
+  // ── Main demo keyboard: C Major scale across 2 octaves ──
+  // C(root), D, E(3rd), F, G(5th), A, B  — colored by bucket
+  const C_MAJOR_HIGHLIGHTS = [];
+  const C_MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+  for (let oct = 0; oct < 2; oct++) {
+    C_MAJOR_SCALE_INTERVALS.forEach(intv => {
+      C_MAJOR_HIGHLIGHTS.push({
+        noteClass: intv,
+        octaveIdx: oct,
+        intervalBucket: bucketFor(intv, C_MAJOR_SCALE_INTERVALS),
+      });
+    });
+  }
+  renderPiano(document.getElementById('mainKeyboard'), {
+    width: 860, height: 220, octaves: 2,
+    highlights: C_MAJOR_HIGHLIGHTS,
+    showLabels: true,
+    baseOctave: 4,
+  });
+
+  // ── Chord card mini-keyboards ──
+  // Each chord: { name, type, root noteClass, intervals [semitone offsets from root] }
+  const CHORDS = [
+    { name: 'C Major',    type: 'R · 3 · 5',          root: 0, intervals: [0, 4, 7] },
+    { name: 'G Major',    type: 'R · 3 · 5',          root: 7, intervals: [0, 4, 7] },
+    { name: 'A Minor 7',  type: 'R · ♭3 · 5 · ♭7',    root: 9, intervals: [0, 3, 7, 10] },
+    { name: 'D Major 7',  type: 'R · 3 · 5 · 7',      root: 2, intervals: [0, 4, 7, 11] },
+    { name: 'E Dom 7',    type: 'R · 3 · 5 · ♭7',     root: 4, intervals: [0, 4, 7, 10] },
+    { name: 'F Minor',    type: 'R · ♭3 · 5',         root: 5, intervals: [0, 3, 7] },
+  ];
+
+  function chordHighlights(root, intervals) {
+    return intervals.map((semi, idx) => {
+      const noteClass = (root + semi) % 12;
+      const octaveIdx = root + semi >= 12 ? 1 : 0;
+      let bucket;
+      if (idx === 0) bucket = 'root';
+      else if (idx === 1) bucket = 'third';
+      else if (idx === 2) bucket = 'fifth';
+      else bucket = 'ext';
+      return { noteClass, octaveIdx, intervalBucket: bucket };
+    });
+  }
+
+  const chordCardsEl = document.getElementById('chordCards');
+  CHORDS.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'chord-card';
+    const svgId = 'chord-svg-' + c.name.replace(/\s+/g, '-');
+    card.innerHTML = `
+      <div class="chord-name">${c.name}</div>
+      <div class="chord-type">${c.type}</div>
+      <svg class="mini-chord" id="${svgId}" viewBox="0 0 180 96" xmlns="http://www.w3.org/2000/svg"></svg>
+    `;
+    chordCardsEl.appendChild(card);
+    renderPiano(document.getElementById(svgId), {
+      width: 180, height: 96, octaves: 1.5,
+      highlights: chordHighlights(c.root, c.intervals),
+      showLabels: false,
+      baseOctave: 4,
+    });
+  });
+
+  // ── Scroll reveal ──
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ── Mobile hamburger menu ──
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+
+  function toggleMenu(open) {
+    hamburger.classList.toggle('open', open);
+    mobileMenu.classList.toggle('open', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
+
+  hamburger.addEventListener('click', () => {
+    toggleMenu(!mobileMenu.classList.contains('open'));
+  });
+
+  document.querySelectorAll('.mobile-link').forEach(link => {
+    link.addEventListener('click', e => {
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('#') && href.length > 1) {
+        e.preventDefault();
+        toggleMenu(false);
+        setTimeout(() => {
+          const target = document.querySelector(href);
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        }, 250);
+      } else {
+        toggleMenu(false);
+      }
+    });
+  });
+
+  mobileMenu.addEventListener('click', e => {
+    if (e.target === mobileMenu) toggleMenu(false);
+  });
+</script>
+</body>
+</html>
