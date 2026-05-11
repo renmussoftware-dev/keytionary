@@ -14,10 +14,10 @@ interface Props {
   inversion?: number;
 }
 
-// Bottom-left C of the diagram represents MIDI 48 (C3 in standard MIDI
-// convention). This matches getChordMidi's default baseOctave=4 so every
-// chord at default octave lands inside the visible range.
-const BASE_MIDI = 48;
+// Fallback bottom-left MIDI when there's no chord-driven hint. The actual
+// visible base is recomputed per-render so the highlighted notes always fit
+// in the diagram, regardless of root or inversion.
+const DEFAULT_BASE_MIDI = 48; // C3 in standard MIDI convention
 
 const KEY_X_IN_OCTAVE: Record<number, number> = {
   0: 0,    1: 0.7,  2: 1,    3: 1.7,  4: 2,
@@ -32,8 +32,10 @@ export default function PianoChordBox({ root, chordKey, compact = false, inversi
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
 
-  // Show 2 octaves so extended chords (9, 11, 13 → up to ~1.75 octaves) fit.
-  const octaves = compact ? 1.5 : 2;
+  // 2 octaves in both modes — 13th chords in root position span ~21
+  // semitones, which won't fit in 1.5. Compact is just visually tighter via
+  // smaller key widths, not narrower in octave range.
+  const octaves = 2;
   const whiteKeyW = compact ? 12 : isTablet ? 30 : 22;
   const whiteKeyH = compact ? 44 : isTablet ? 110 : 84;
   const blackKeyW = whiteKeyW * BLACK_KEY_WIDTH_RATIO;
@@ -57,14 +59,31 @@ export default function PianoChordBox({ root, chordKey, compact = false, inversi
   // Highlight the specific MIDI notes of the inversion's voicing — not every
   // octave of the chord's note classes. This is what makes an inversion
   // actually *look* different on the keyboard.
-  const chordMidiSet = new Set(getChordMidi(root, chordKey, 4, inversion));
+  const chordMidiList = getChordMidi(root, chordKey, 4, inversion);
+  const chordMidiSet = new Set(chordMidiList);
+
+  // Pick a visible base MIDI so every chord note fits in the diagram. Prefer
+  // C-aligned (multiples of 12) for natural anchoring — the eye recognises
+  // a piano better when it starts at a C boundary. If the chord's highest
+  // note pokes above the C-aligned window, shift up just enough to include
+  // it (gives up C-alignment but keeps every note in frame).
+  const totalSemitones = octaves * 12;
+  let baseMidi = DEFAULT_BASE_MIDI;
+  if (chordMidiList.length > 0) {
+    const chordLow = chordMidiList[0]; // already sorted ascending
+    const chordHigh = chordMidiList[chordMidiList.length - 1];
+    const cBelow = Math.floor(chordLow / 12) * 12;
+    baseMidi = (cBelow + totalSemitones > chordHigh)
+      ? cBelow
+      : Math.max(0, chordHigh - totalSemitones + 1);
+  }
 
   function noteX(noteClass: number, octaveIdx: number): number {
     return PAD + (octaveIdx * WHITE_KEYS_PER_OCTAVE + KEY_X_IN_OCTAVE[noteClass]) * whiteKeyW;
   }
 
   function visibleMidi(octaveIdx: number, noteClass: number): number {
-    return BASE_MIDI + octaveIdx * 12 + noteClass;
+    return baseMidi + octaveIdx * 12 + noteClass;
   }
 
   // Color is still keyed off the note's interval role in the underlying chord
