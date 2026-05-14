@@ -61,6 +61,17 @@ async function main() {
     .toFile(join(ASSETS, 'icon.png'));
   console.log('icon.png 1024×1024 ✓');
 
+  // Google Play Store listing icon — 512×512, full bleed. Distinct from the
+  // adaptive icon (which is what installs onto an Android device): this one
+  // is what shows in the Play Store listing, search results, and Play's
+  // recommendation surfaces. Same composition as iOS, just smaller.
+  await placeOnSquare(trimmed.buffer, 512, 0.03, BG)
+    .flatten({ background: BG })
+    .removeAlpha()
+    .png({ compressionLevel: 9 })
+    .toFile(join(ASSETS, 'play-store-icon.png'));
+  console.log('play-store-icon.png 512×512 ✓');
+
   // Splash icon — same prominence as the app icon. Splash backdrop already
   // gives it room; we don't want it postage-stamp sized.
   await placeOnSquare(trimmed.buffer, 1024, 0.08, BG)
