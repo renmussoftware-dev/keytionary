@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Keytionary Feature Graphic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  html, body {
+    width: 1024px;
+    height: 500px;
+    background: #0a0a0c;
+    color: #f0ede8;
+    font-family: 'Instrument Sans', sans-serif;
+    overflow: hidden;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 700px 400px at 75% 50%, rgba(232,200,77,0.12), transparent 60%),
+      radial-gradient(ellipse 500px 300px at 15% 30%, rgba(110,96,217,0.10), transparent 55%),
+      #0a0a0c;
+    padding: 60px 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .left { max-width: 540px; }
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #e8c84d;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 64px;
+    line-height: 1.02;
+    letter-spacing: -1.5px;
+    color: #f2f1ec;
+    margin-bottom: 16px;
+  }
+  h1 em { font-style: italic; color: #e8c84d; }
+  p {
+    font-size: 18px;
+    color: #8a8780;
+    line-height: 1.5;
+  }
+  /* Piano keys decoration on the right */
+  .keys {
+    position: relative;
+    width: 340px;
+    height: 380px;
+    flex-shrink: 0;
+  }
+  .key {
+    position: absolute;
+    background: #f5f2ea;
+    border: 1.5px solid #1a1a20;
+    border-radius: 4px;
+  }
+  .key.white {
+    width: 44px;
+    height: 320px;
+    bottom: 0;
+  }
+  .key.black {
+    background: #1a1a1f;
+    width: 28px;
+    height: 200px;
+    border: none;
+    bottom: 120px;
+  }
+  .dot {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dot.root  { background: #e8c84d; border-color: #c4a000; color: #5C4400; }
+  .dot.third { background: #e24b4a; border-color: #a32d2d; color: #fff; }
+  .dot.fifth { background: #1d9e75; border-color: #0f6e56; color: #fff; }
+  .dot.ext   { background: #378add; border-color: #185fa5; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="left">
+  <div class="eyebrow">Piano theory, visualized</div>
+  <h1>Every chord<br>and scale —<br><em>on the keys.</em></h1>
+  <p>14 scales. 35 chord types. 22 progressions. Real piano audio.</p>
+</div>
+
+<div class="keys">
+  <!-- 7 white keys for one octave -->
+  <div class="key white" style="left: 0"></div>
+  <div class="key white" style="left: 46px"></div>
+  <div class="key white" style="left: 92px"></div>
+  <div class="key white" style="left: 138px"></div>
+  <div class="key white" style="left: 184px"></div>
+  <div class="key white" style="left: 230px"></div>
+  <div class="key white" style="left: 276px"></div>
+  <!-- 5 black keys -->
+  <div class="key black" style="left: 30px"></div>
+  <div class="key black" style="left: 78px"></div>
+  <div class="key black" style="left: 168px"></div>
+  <div class="key black" style="left: 216px"></div>
+  <div class="key black" style="left: 262px"></div>
+
+  <!-- C major chord highlighted (root C, third E, fifth G) -->
+  <div class="dot root"  style="bottom: 30px; left: 8px">C</div>
+  <div class="dot third" style="bottom: 30px; left: 100px">E</div>
+  <div class="dot fifth" style="bottom: 30px; left: 192px">G</div>
+  <div class="dot ext"   style="bottom: 30px; left: 284px">B</div>
+</div>
+
+</body>
+</html>
