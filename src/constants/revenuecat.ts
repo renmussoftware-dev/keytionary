@@ -25,7 +25,7 @@
 
 export const REVENUECAT = {
   iosApiKey:     'appl_KEmbhloMThUmrIscCgooEEvCDKY',
-  androidApiKey: 'goog_PLACEHOLDER',
+  androidApiKey: 'goog_GgQfsCDbLMYvpQhjNVGxWChDKmW',
   entitlementId: 'Keytionary Pro',
 } as const;
 

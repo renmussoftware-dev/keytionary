@@ -2,7 +2,7 @@
   "expo": {
     "name": "Keytionary",
     "slug": "keytionary",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.renmussoftware.keytionary",
-      "versionCode": 1,
+      "versionCode": 4,
       "predictiveBackGestureEnabled": false,
       "permissions": [],
       "blockedPermissions": [

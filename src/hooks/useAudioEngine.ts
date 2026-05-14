@@ -82,64 +82,45 @@ const AUDIO_FILES: Record<string, any> = {
 
 // Each note holds a small pool of Sound instances. Playing a note advances
 // a per-note round-robin index, so consecutive plays of the same note hit
-// different Sound objects. A previous attack rings out naturally on its
-// original instance while the new attack hits a fresh one — the only way
-// to avoid the interrupt-while-playing race that drops notes on iOS at
-// progression speed.
+// different Sound objects — the previous attack rings out on its own
+// instance while the new attack hits a fresh one, avoiding the interrupt-
+// while-playing race that drops notes on iOS at progression speed.
 //
-// Pool size 3 covers any progression where the same note appears in up to
-// 3 chords within ~3.5s (the sample's effective duration). By the time the
-// pool wraps back to instance 0, its original playback is past the sample
-// length and fully silent — no audible interference.
-const POOL_SIZE = 3;
+// Pool size 2 covers a note appearing in two consecutive chords. A third
+// consecutive attack reuses instance 0, but by then (~3s at 80 BPM) its
+// sample is in the fade-out tail, so the re-attack is barely audible.
+const POOL_SIZE = 2;
+
+// Cap on how many note-pools stay resident. We DON'T preload the full
+// 64-note chromatic set anymore: that's 64 × POOL_SIZE Sound instances
+// created in a startup burst, which iOS tolerates but Android's media
+// stack does not — it silently fails partway through, leaving most notes
+// unplayable. Instead we lazy-load each note's pool on first use and evict
+// the least-recently-used pool once we hit MAX_POOLS. 28 pools × 2 = 56
+// instances max, created gradually, comfortably under Android's ceiling
+// and big enough to hold a full progression's worth of notes without
+// thrashing.
+const MAX_POOLS = 28;
 
 export function useAudioEngine() {
   const soundsRef = useRef<Record<string, Sound[]>>({});
   const poolIdxRef = useRef<Record<string, number>>({});
-  const loadedRef = useRef(false);
+  // LRU order of note names — index 0 is least-recently-used.
+  const lruRef = useRef<string[]>([]);
+  // In-flight loads, keyed by note name, so concurrent ensureLoaded calls
+  // for the same note (e.g. preload racing playback) don't double-load.
+  const loadingRef = useRef<Record<string, Promise<Sound[] | null>>>({});
   const progressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    async function loadAll() {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-      });
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const loaded: Record<string, Sound[]> = {};
-      const entries = Object.entries(AUDIO_FILES);
-      // Each load is one createAsync, and we need POOL_SIZE per name. Batch
-      // the unrolled list to keep iOS from getting overwhelmed.
-      const tasks: { name: string; src: any }[] = [];
-      for (const [name, src] of entries) {
-        for (let i = 0; i < POOL_SIZE; i++) tasks.push({ name, src });
-      }
-      const BATCH_SIZE = 10;
-      for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
-        const batch = tasks.slice(i, i + BATCH_SIZE);
-        await Promise.all(
-          batch.map(async ({ name, src }) => {
-            try {
-              const { sound } = await Audio.Sound.createAsync(
-                src,
-                { shouldPlay: false, volume: 1.0, progressUpdateIntervalMillis: 100 }
-              );
-              if (!loaded[name]) loaded[name] = [];
-              loaded[name].push(sound);
-            } catch {
-              // skip — if a few instances fail to load, the remaining pool
-              // still lets the note play.
-            }
-          })
-        );
-      }
-      soundsRef.current = loaded;
-      loadedRef.current = true;
-    }
-    loadAll();
+    // Set the audio session mode once. No sample preloading — sounds load
+    // lazily on first play (see ensureLoaded).
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    }).catch(() => {});
 
     return () => {
       for (const pool of Object.values(soundsRef.current)) {
@@ -149,52 +130,94 @@ export function useAudioEngine() {
     };
   }, []);
 
-  // Play a single note. Picks the next Sound from this note's pool (round-
-  // robin), then replayAsyncs it. The previous instance keeps ringing on its
-  // own; we never interrupt an in-flight playback.
-  const playMidi = useCallback(async (midi: number) => {
-    const name = midiToFilename(midi);
-    let pool = soundsRef.current[name];
+  // Move a note name to the most-recently-used end of the LRU list.
+  function touchLru(name: string) {
+    const lru = lruRef.current;
+    const i = lru.indexOf(name);
+    if (i !== -1) lru.splice(i, 1);
+    lru.push(name);
+  }
 
-    // Lazy-load a single instance if nothing is preloaded for this note
-    // (rare — only for notes outside the bundled range).
-    if ((!pool || pool.length === 0) && AUDIO_FILES[name]) {
-      try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, allowsRecordingIOS: false, staysActiveInBackground: false });
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          AUDIO_FILES[name], { shouldPlay: false, volume: 1.0 }
-        );
-        soundsRef.current[name] = [newSound];
-        pool = soundsRef.current[name];
-      } catch {
-        return;
-      }
+  // Ensure a note's Sound pool is loaded. Returns the pool, or null if the
+  // sample doesn't exist / failed to load. Lazy-loads POOL_SIZE instances
+  // on first use, evicting the least-recently-used pool when at capacity.
+  const ensureLoaded = useCallback(async (name: string): Promise<Sound[] | null> => {
+    const existing = soundsRef.current[name];
+    if (existing) {
+      touchLru(name);
+      return existing;
     }
+    // Dedupe concurrent loads of the same note.
+    const inFlight = loadingRef.current[name];
+    if (inFlight) return inFlight;
+    if (!AUDIO_FILES[name]) return null;
 
-    if (!pool || pool.length === 0) return;
-    const idx = (poolIdxRef.current[name] ?? 0) % pool.length;
-    poolIdxRef.current[name] = idx + 1;
-    const sound = pool[idx];
+    const loadPromise = (async (): Promise<Sound[] | null> => {
+      // Evict LRU pools until there's room.
+      while (lruRef.current.length >= MAX_POOLS) {
+        const victim = lruRef.current.shift();
+        if (!victim) break;
+        const pool = soundsRef.current[victim];
+        if (pool) {
+          for (const s of pool) s.unloadAsync().catch(() => {});
+          delete soundsRef.current[victim];
+          delete poolIdxRef.current[victim];
+        }
+      }
 
+      const pool: Sound[] = [];
+      for (let i = 0; i < POOL_SIZE; i++) {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            AUDIO_FILES[name], { shouldPlay: false, volume: 1.0 }
+          );
+          pool.push(sound);
+        } catch {
+          // A partial pool still plays — keep whatever loaded.
+        }
+      }
+      if (pool.length === 0) return null;
+      soundsRef.current[name] = pool;
+      touchLru(name);
+      return pool;
+    })();
+
+    loadingRef.current[name] = loadPromise;
     try {
-      await sound.replayAsync();
-    } catch {
-      // ignore playback errors
+      return await loadPromise;
+    } finally {
+      delete loadingRef.current[name];
     }
   }, []);
 
-  // Play a chord as a block — all notes attacked simultaneously, the way
-  // a pianist plays a chord with one hand stroke. The previous version
-  // staggered notes by 14ms each (a low-to-high roll, inherited from the
-  // guitar-strum logic in Fretionary). For piano it reads as a stutter
-  // rather than a flourish, so we fire every note in parallel and let the
-  // OS-level scheduling latency be the only spread.
-  //
-  // We don't pre-stop the previous chord's notes — every variant of
-  // stopAsync we tried ended up dropping freshly-attacked notes on iOS.
-  // replayAsync is atomic and reliable; old notes ring out naturally on
-  // their fade-out tail (3.5s samples with 1s fade), and polyphony stays
-  // bounded since older chords have faded by the third one.
+  // Preload a set of MIDI notes ahead of playback so the first loop of a
+  // progression doesn't lag while samples load. Capped at MAX_POOLS — a
+  // progression rarely has more unique notes than that.
+  const preloadMidi = useCallback(async (midiList: number[]) => {
+    const names = [...new Set(midiList.map(midiToFilename))].slice(0, MAX_POOLS);
+    await Promise.all(names.map(n => ensureLoaded(n)));
+  }, [ensureLoaded]);
+
+  // Play a single note. Lazy-loads the note's pool if needed, then picks the
+  // next instance round-robin and replayAsyncs it (atomic reset + play).
+  const playMidi = useCallback(async (midi: number) => {
+    const name = midiToFilename(midi);
+    const pool = await ensureLoaded(name);
+    if (!pool || pool.length === 0) return;
+    const idx = (poolIdxRef.current[name] ?? 0) % pool.length;
+    poolIdxRef.current[name] = idx + 1;
+    try {
+      await pool[idx].replayAsync();
+    } catch {
+      // ignore playback errors
+    }
+  }, [ensureLoaded]);
+
+  // Play a chord as a block — all notes attacked simultaneously, the way a
+  // pianist plays a chord in one hand stroke. We don't pre-stop the previous
+  // chord's notes — every stopAsync variant dropped freshly-attacked notes
+  // on iOS. replayAsync is atomic; old notes ring out on their fade-out
+  // tail (3.5s samples, 1s fade) and polyphony stays naturally bounded.
   const playChord = useCallback(async (notes: number[]) => {
     await Promise.all(notes.map(midi => playMidi(midi)));
   }, [playMidi]);
@@ -207,7 +230,8 @@ export function useAudioEngine() {
   }, []);
 
   // Play a sequence of MIDI-chord arrays at a given BPM (2 beats per chord).
-  // onStep(index) fires as each chord plays.
+  // onStep(index) fires as each chord plays. The progression's notes are
+  // pre-warmed so the first loop doesn't stutter while samples load.
   const playProgression = useCallback((
     chordMidiList: number[][],
     bpm: number,
@@ -217,6 +241,10 @@ export function useAudioEngine() {
     stopProgression();
     const msPerBeat = (60 / bpm) * 1000 * 2;
     let idx = 0;
+
+    // Fire-and-forget warm-up; playMidi also lazy-loads, so a slow load just
+    // means that note is quiet on the very first pass, never silent forever.
+    preloadMidi(chordMidiList.flat());
 
     function step() {
       if (idx >= chordMidiList.length) {
@@ -229,7 +257,7 @@ export function useAudioEngine() {
       progressionTimerRef.current = setTimeout(step, msPerBeat);
     }
     step();
-  }, [playChord, stopProgression]);
+  }, [playChord, preloadMidi, stopProgression]);
 
   return { playMidi, playChord, playProgression, stopProgression };
 }
