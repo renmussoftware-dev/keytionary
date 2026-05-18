@@ -187,51 +187,68 @@
   <div class="content">
 
     <div class="highlight">
-      <p><strong>The short version:</strong> Keytionary does not collect, store, or sell your personal data. The app works entirely on your device. We don't track you.</p>
+      <p><strong>The short version:</strong> Keytionary stores your preferences on your device. We don't sell your data. We use Meta's app-events SDK so we can measure and improve our Facebook and Instagram ads — on iOS this is opt-in via the App Tracking Transparency prompt, and you can opt out anytime in Settings.</p>
     </div>
 
     <h2>Who We Are</h2>
     <p>Keytionary is a piano theory reference app developed and published by Renmus Software LLC, a Florida limited liability company. If you have any questions about this policy, contact us at <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a>.</p>
 
-    <h2>Information We Do Not Collect</h2>
-    <p>Keytionary is designed to work entirely on your device without requiring an account or transmitting your data to our servers. We do not collect:</p>
+    <h2>Information We Don't Collect</h2>
+    <p>Keytionary doesn't require an account and we don't run our own servers that store your data. We do not collect:</p>
     <ul>
-      <li>Your name, email address, or any personal identifiers</li>
+      <li>Your name, email address, or any other personal identifiers we'd use to contact you</li>
       <li>Your location or device GPS data</li>
-      <li>Your usage patterns, session data, or analytics</li>
       <li>Your contacts, photos, camera, or microphone data</li>
-      <li>Any health or financial information</li>
+      <li>Any health or financial information beyond what your app store handles for purchases</li>
     </ul>
 
+    <h2>Information We Do Collect</h2>
+    <p>To measure and improve our Facebook and Instagram ad campaigns, we use Meta's app-events SDK. When permitted, it sends Meta a small set of conversion-funnel events along with a device-level advertising identifier:</p>
+    <ul>
+      <li><strong>App install</strong> — automatically attributed by Meta if you arrived from one of our ads</li>
+      <li><strong>Onboarding completed</strong> — fired the first time you finish the welcome screens</li>
+      <li><strong>Paywall viewed</strong> — fired when the Pro upgrade screen is shown</li>
+      <li><strong>Pro feature tapped</strong> — fired when you tap a feature that's locked behind Pro (along with which feature)</li>
+      <li><strong>Subscription / purchase</strong> — fired by our subscription provider (RevenueCat) when a purchase completes, sent server-side</li>
+    </ul>
+    <p>Meta receives this data along with the advertising identifier for your device. It does not include your name, email, music preferences, or any of the app's content. We use it only to measure ad performance and to build privacy-preserving "lookalike" audiences for future campaigns.</p>
+
+    <h2>App Tracking Transparency (iOS)</h2>
+    <p>On iOS, Apple requires us to ask permission before sharing your device's advertising identifier with Meta. If you say <strong>no</strong> to the "Allow Keytionary to track you" prompt, Meta still receives event names but without an identifier — that means installs and purchases are attributed in aggregate via Apple's SKAdNetwork, but we can't tie individual events back to specific Meta campaigns or build lookalike audiences from your activity. You can change this answer at any time in <em>Settings → Privacy &amp; Security → Tracking</em>.</p>
+
+    <h2>Advertising ID (Android)</h2>
+    <p>On Android 13 and later, Google's advertising ID is itself resettable and limitable in <em>Settings → Privacy → Ads</em>. You can reset it at any time, or turn it off entirely, in which case Meta receives only event names without a stable identifier.</p>
+
     <h2>Subscription Purchases</h2>
-    <p>Keytionary offers optional in-app purchases (monthly, annual, and lifetime subscriptions) processed entirely through Apple's App Store. We never see or store your payment information. All billing is handled by Apple under their own privacy policy and terms of service.</p>
-    <p>We use <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat</a> to manage subscription entitlements. RevenueCat receives a hashed, anonymous identifier to verify your subscription status. No personally identifiable information is shared. You can review RevenueCat's privacy policy at revenuecat.com/privacy.</p>
+    <p>Keytionary offers optional in-app purchases (monthly, annual, and lifetime subscriptions) processed entirely through Apple's App Store or Google Play. We never see or store your payment information — all billing is handled by Apple or Google under their own privacy policies and terms of service.</p>
+    <p>We use <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat</a> to manage subscription entitlements. RevenueCat receives a hashed, anonymous identifier to verify your subscription status. RevenueCat in turn forwards purchase events to Meta via Meta's Conversions API so we can attribute purchases to ad campaigns. No personally identifiable information beyond the advertising identifier is shared.</p>
 
     <h2>Local Data Storage</h2>
-    <p>Keytionary stores your preferences (selected root note, scale, chord, label mode, favorites, recents) locally on your device using standard iOS storage. This data never leaves your device and is deleted when you uninstall the app.</p>
+    <p>Keytionary stores your preferences (selected root note, scale, chord, label mode, favorites, recents) locally on your device using standard iOS / Android storage. This data never leaves your device and is deleted when you uninstall the app.</p>
 
     <h2>Audio</h2>
     <p>The app includes pre-recorded piano note samples bundled within the app itself. These samples play back locally on your device. We do not access your microphone and no audio is transmitted anywhere.</p>
 
     <h2>Children's Privacy</h2>
-    <p>Keytionary is rated 4+ on the App Store and is suitable for all ages. We do not knowingly collect any information from children or any other users, as described in this policy.</p>
+    <p>Keytionary is rated 4+ / Everyone on the app stores and is suitable for all ages, but we don't intentionally market to or onboard users under 13. We don't knowingly collect data from children, and our targeting on Meta excludes audiences under 13. If you believe a child under 13 has provided information to us, contact <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a> and we'll delete any associated data.</p>
 
     <h2>Third-Party Services</h2>
     <p>The app integrates with the following third-party services:</p>
     <ul>
-      <li><strong>Apple App Store</strong> — for app distribution and in-app purchases</li>
-      <li><strong>RevenueCat</strong> — for subscription management (anonymous identifiers only)</li>
+      <li><strong>Apple App Store / Google Play</strong> — for app distribution and in-app purchases</li>
+      <li><strong>RevenueCat</strong> — for subscription management (anonymous identifiers)</li>
+      <li><strong>Meta (Facebook) App Events SDK</strong> — for ad attribution and audience measurement, as described above. See Meta's <a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener">privacy policy</a>.</li>
     </ul>
-    <p>We do not integrate with any advertising networks, analytics platforms, social media SDKs, or crash reporting tools.</p>
+    <p>We do not integrate with any other analytics platforms, crash reporting tools, or third-party social SDKs.</p>
 
     <h2>Data Security</h2>
-    <p>Because we do not collect or transmit your personal data, there is no data stored on our servers that could be compromised. All app data remains on your device under Apple's standard iOS security protections.</p>
+    <p>The data shared with Meta is transmitted over HTTPS to Meta's servers. App preferences remain on your device under standard iOS / Android security protections.</p>
 
     <h2>Changes to This Policy</h2>
     <p>We may update this privacy policy from time to time. When we do, we will update the "Last updated" date at the top of this page. Continued use of the app after any changes constitutes your acceptance of the updated policy.</p>
 
     <h2>Your Rights</h2>
-    <p>Since we do not collect personal data, there is nothing to access, correct, or delete. If you have questions or concerns, contact us at <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a> and we will respond within 30 days.</p>
+    <p>You can ask us to provide, correct, or delete any data we hold about you by emailing <a href="mailto:privacy@keytionary.com">privacy@keytionary.com</a> — we'll respond within 30 days. You can opt out of Meta tracking at any time via your device's privacy settings (iOS: <em>Settings → Privacy &amp; Security → Tracking</em>; Android: <em>Settings → Privacy → Ads</em>).</p>
 
     <h2>Contact</h2>
     <p>Renmus Software LLC<br>

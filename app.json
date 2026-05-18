@@ -2,7 +2,7 @@
   "expo": {
     "name": "Keytionary",
     "slug": "keytionary",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.renmussoftware.keytionary",
-      "versionCode": 4,
+      "versionCode": 5,
       "predictiveBackGestureEnabled": false,
       "permissions": [],
       "blockedPermissions": [
@@ -55,7 +55,21 @@
             "minSdkVersion": 24
           }
         }
-      ]
+      ],
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "PLACEHOLDER_FACEBOOK_APP_ID",
+          "clientToken": "PLACEHOLDER_CLIENT_TOKEN",
+          "displayName": "Keytionary",
+          "scheme": "fbPLACEHOLDER_FACEBOOK_APP_ID",
+          "advertiserIDCollectionEnabled": true,
+          "autoLogAppEventsEnabled": false,
+          "isAutoInitEnabled": false,
+          "iosUserTrackingPermission": "Allowing tracking lets us see if our Facebook and Instagram ads brought you here, so we can improve them."
+        }
+      ],
+      "expo-tracking-transparency"
     ],
     "scheme": "keytionary",
     "experiments": {

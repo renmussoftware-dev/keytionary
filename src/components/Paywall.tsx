@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, Linking, Platform,
@@ -9,6 +9,7 @@ import { PACKAGE_TYPE } from 'react-native-purchases';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { COLORS, SPACE, RADIUS } from '../constants/theme';
 import { useRevenueCat } from '../hooks/useRevenueCat';
+import { logPaywallViewed, logCheckoutInitiated } from '../lib/analytics';
 
 interface Props {
   onClose?: () => void;
@@ -20,6 +21,13 @@ export default function Paywall({ onClose, onSuccess }: Props) {
   const [purchasing, setPurchasing] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(1); // Default to annual
 
+  // Fire the Meta "viewed content" event the first time the paywall mounts.
+  // Captures intent — every user who got far enough to see the paywall —
+  // for retargeting audiences in Ads Manager.
+  useEffect(() => {
+    logPaywallViewed();
+  }, []);
+
   // Sort packages: monthly, annual, lifetime
   const sorted = [...packages].sort((a, b) => {
     const order = [PACKAGE_TYPE.MONTHLY, PACKAGE_TYPE.ANNUAL, PACKAGE_TYPE.LIFETIME];
@@ -27,6 +35,17 @@ export default function Paywall({ onClose, onSuccess }: Props) {
   });
 
   async function handlePurchase(pkg: PurchasesPackage) {
+    // Fire "initiated checkout" the moment the user commits to attempting
+    // the purchase — captures high-intent regardless of whether the
+    // platform purchase sheet ultimately succeeds or gets cancelled. The
+    // successful-purchase event itself comes from RevenueCat's Meta
+    // integration (CAPI, server-side) so we don't fire it here.
+    const planKey =
+      pkg.packageType === PACKAGE_TYPE.MONTHLY  ? 'monthly'  :
+      pkg.packageType === PACKAGE_TYPE.ANNUAL   ? 'annual'   :
+      pkg.packageType === PACKAGE_TYPE.LIFETIME ? 'lifetime' : 'monthly';
+    logCheckoutInitiated(planKey, pkg.product.price);
+
     setPurchasing(true);
     const success = await purchasePackage(pkg);
     setPurchasing(false);

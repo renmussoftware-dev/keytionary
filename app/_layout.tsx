@@ -13,6 +13,7 @@ import {
   JetBrainsMono_700Bold,
 } from '@expo-google-fonts/jetbrains-mono';
 import Onboarding from '../src/components/Onboarding';
+import { initAnalytics, logOnboardingComplete } from '../src/lib/analytics';
 
 const ONBOARDING_KEY = 'keytionary_onboarded_v1';
 
@@ -45,7 +46,20 @@ export default function RootLayout() {
   async function finishOnboarding() {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'done').catch(() => {});
     setShowOnboarding(false);
+    // Kick off init (this also runs from the useEffect below; calls are
+    // idempotent). Once the SDK is up — including the iOS ATT prompt
+    // resolving — fire the standard "complete registration" event so it
+    // doesn't get dropped by being logged pre-init.
+    initAnalytics().then(() => logOnboardingComplete());
   }
+
+  // Initialize the Meta SDK + iOS ATT prompt once onboarding is out of the
+  // way. Fires for both new users (after onboarding) and returning users
+  // (immediately on mount). initAnalytics is idempotent and the ATT prompt
+  // only ever shows once per install, so subsequent app opens are silent.
+  useEffect(() => {
+    if (showOnboarding === false) initAnalytics();
+  }, [showOnboarding]);
 
   // Wait until we know whether to show onboarding AND fonts have loaded
   if (showOnboarding === null || !fontsLoaded) return null;
