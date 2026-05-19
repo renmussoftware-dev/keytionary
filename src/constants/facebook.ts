@@ -24,10 +24,10 @@
  *      server-side via CAPI, deduplicated against the client SDK's.
  */
 
-export const FACEBOOK = {
-  appId:       'PLACEHOLDER',
-  clientToken: 'PLACEHOLDER',
-} as const;
+export const FACEBOOK: { appId: string; clientToken: string } = {
+  appId:       '1403805795116232',
+  clientToken: '2a40152259ccd0b7cb2705e97ec9ee89',
+};
 
 export function isFbSdkConfigured(): boolean {
   return FACEBOOK.appId !== 'PLACEHOLDER' && FACEBOOK.clientToken !== 'PLACEHOLDER';

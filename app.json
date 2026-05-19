@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.renmussoftware.keytionary",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "UIBackgroundModes": [],
         "ITSAppUsesNonExemptEncryption": false
@@ -59,10 +59,10 @@
       [
         "react-native-fbsdk-next",
         {
-          "appID": "PLACEHOLDER_FACEBOOK_APP_ID",
-          "clientToken": "PLACEHOLDER_CLIENT_TOKEN",
+          "appID": "1403805795116232",
+          "clientToken": "2a40152259ccd0b7cb2705e97ec9ee89",
           "displayName": "Keytionary",
-          "scheme": "fbPLACEHOLDER_FACEBOOK_APP_ID",
+          "scheme": "fb1403805795116232",
           "advertiserIDCollectionEnabled": true,
           "autoLogAppEventsEnabled": false,
           "isAutoInitEnabled": false,
