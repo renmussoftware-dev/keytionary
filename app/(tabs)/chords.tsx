@@ -20,6 +20,7 @@ import { getChordMidi, maxInversion, getInversionBass } from '../../src/utils/th
 import { getResolutions } from '../../src/constants/resolutions';
 import HeartButton from '../../src/components/HeartButton';
 import SavedSheet from '../../src/components/SavedSheet';
+import VoicingBrowser from '../../src/components/VoicingBrowser';
 
 const CATEGORIES = ['All', 'Triads', 'Seventh', 'Extended', 'Sus'];
 const CAT_MAP: Record<string, string> = {
@@ -245,6 +246,13 @@ export default function ChordsScreen() {
           <View style={styles.diagramCard}>
             <PianoChordBox root={root} chordKey={selectedChord} inversion={selectedInversion} />
           </View>
+
+          <Text style={styles.sectionLabel}>Voicings</Text>
+          <Text style={styles.voicingIntro}>
+            Same chord, real-world voicings — tap to hear each. Squares show what
+            your left hand plays.
+          </Text>
+          <VoicingBrowser root={root} chordKey={selectedChord} />
 
           {chord && (
             <>
@@ -474,6 +482,10 @@ const styles = StyleSheet.create({
                        textTransform: 'uppercase',
                        marginBottom: SPACE.sm,
                        fontFamily: FONT_FAMILY.mono,
+                     },
+  voicingIntro:      {
+                       fontSize: 13, color: COLORS.textMuted,
+                       lineHeight: 19, marginBottom: SPACE.md,
                      },
 
   ivCardRow:         { gap: 8, paddingBottom: SPACE.xl },
