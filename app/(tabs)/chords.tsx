@@ -214,6 +214,20 @@ export default function ChordsScreen() {
           </View>
           <Text style={styles.detailDesc}>{chord?.description}</Text>
 
+          {/* HERO — voicings lead the screen. The question players actually
+              ask ("how do I play this so it sounds good, and what does my left
+              hand do?") is answered first; theory is demoted to Reference. */}
+          <Text style={styles.voicingLead}>
+            Real-world voicings — tap to hear each. Swap the left hand up top;
+            squares show what it plays.
+          </Text>
+          <VoicingBrowser root={root} chordKey={selectedChord} />
+
+          {/* ── Reference: chord identity + theory, secondary to the voicings ── */}
+          <View style={styles.refDivider} />
+          <Text style={styles.refHeading}>Reference</Text>
+
+          <Text style={styles.sectionLabel}>The chord</Text>
           {/* Inversion selector — capped at min(chord size - 1, 3) since
               higher inversions get esoteric. */}
           {chord && chord.intervals.length >= 2 && (() => {
@@ -246,13 +260,6 @@ export default function ChordsScreen() {
           <View style={styles.diagramCard}>
             <PianoChordBox root={root} chordKey={selectedChord} inversion={selectedInversion} />
           </View>
-
-          <Text style={styles.sectionLabel}>Voicings</Text>
-          <Text style={styles.voicingIntro}>
-            Same chord, real-world voicings — tap to hear each. Squares show what
-            your left hand plays.
-          </Text>
-          <VoicingBrowser root={root} chordKey={selectedChord} />
 
           {chord && (
             <>
@@ -483,9 +490,20 @@ const styles = StyleSheet.create({
                        marginBottom: SPACE.sm,
                        fontFamily: FONT_FAMILY.mono,
                      },
-  voicingIntro:      {
-                       fontSize: 13, color: COLORS.textMuted,
-                       lineHeight: 19, marginBottom: SPACE.md,
+  voicingLead:       {
+                       fontSize: 14, color: COLORS.text,
+                       lineHeight: 20, marginBottom: SPACE.md,
+                     },
+  refDivider:        {
+                       height: 1, backgroundColor: COLORS.border,
+                       marginTop: SPACE.sm, marginBottom: SPACE.lg,
+                     },
+  refHeading:        {
+                       fontSize: 13, fontWeight: '700',
+                       color: COLORS.textMuted, letterSpacing: 1,
+                       textTransform: 'uppercase',
+                       marginBottom: SPACE.lg,
+                       fontFamily: FONT_FAMILY.mono,
                      },
 
   ivCardRow:         { gap: 8, paddingBottom: SPACE.xl },
