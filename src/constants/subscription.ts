@@ -33,6 +33,17 @@ export const FREE_PROGRESSIONS = new Set([
   '12-Bar Blues',
 ]);
 
+// ── FREE VOICINGS (2 of 6) ───────────────────────────────────────────────────
+// "Close" is the textbook voicing every other app shows. "Spread" is a free
+// taste of the magic — the user hears flat → gorgeous, gets the visceral hook,
+// then hits the wall wanting the rest (drop-2, shell, rootless, quartal). Those
+// are the Pro conversion driver. Change this set to move the wall; the lock-hit
+// analytics (tagged voicing:<id>) show which voicing converts best.
+export const FREE_VOICINGS = new Set([
+  'close',
+  'spread',
+]);
+
 // ── FEATURE GATES ────────────────────────────────────────────────────────────
 export const PRO_FEATURES = {
   progressionAudio: true,    // Play button in progressions tab
@@ -48,5 +59,9 @@ export function isChordFree(chordKey: string): boolean {
 
 export function isProgressionFree(progressionName: string): boolean {
   return FREE_PROGRESSIONS.has(progressionName);
+}
+
+export function isVoicingFree(voicingId: string): boolean {
+  return FREE_VOICINGS.has(voicingId);
 }
 

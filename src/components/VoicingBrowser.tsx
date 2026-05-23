@@ -6,6 +6,8 @@ import { COLORS, SPACE, RADIUS, FONT_FAMILY } from '../constants/theme';
 import { NOTES } from '../constants/music';
 import { buildVoicings } from '../utils/voicings';
 import { useAudioEngine } from '../hooks/useAudioEngine';
+import { useProGate } from '../hooks/useProGate';
+import { isVoicingFree } from '../constants/subscription';
 import PianoVoicingBox from './PianoVoicingBox';
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
 export default function VoicingBrowser({ root, chordKey }: Props) {
   const { width: screenW } = useWindowDimensions();
   const { playChord } = useAudioEngine();
+  const { isPro, requirePro } = useProGate();
   const voicings = useMemo(() => buildVoicings(root, chordKey), [root, chordKey]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -31,21 +34,26 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
 
   if (voicings.length === 0) return null;
 
+  // Tapping a card plays it — unless it's a Pro-gated voicing for a free user,
+  // in which case requirePro routes to the paywall and logs a lock-hit tagged
+  // with the voicing id (so Ads Manager shows which voicing converts best).
   function play(id: string, lh: number[], rh: number[]) {
-    setActiveId(id);
-    playChord([...lh, ...rh]);
+    const fire = () => { setActiveId(id); playChord([...lh, ...rh]); };
+    if (isVoicingFree(id)) { fire(); return; }
+    requirePro(fire, `voicing:${id}`);
   }
 
   return (
     <View style={styles.wrap}>
       {voicings.map(v => {
         const active = v.id === activeId;
+        const locked = !isPro && !isVoicingFree(v.id);
         return (
           <TouchableOpacity
             key={v.id}
             activeOpacity={0.85}
             onPress={() => play(v.id, v.lh, v.rh)}
-            style={[styles.card, active && styles.cardActive]}
+            style={[styles.card, active && styles.cardActive, locked && styles.cardLocked]}
           >
             <View style={styles.headerRow}>
               <View style={styles.tagPill}>
@@ -53,30 +61,45 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
               </View>
               <Text style={styles.name}>{v.name}</Text>
               <View style={{ flex: 1 }} />
-              <Text style={styles.playGlyph}>{active ? '♪' : '▶'}</Text>
+              <Text style={styles.playGlyph}>{locked ? '🔒' : active ? '♪' : '▶'}</Text>
             </View>
 
             <View style={styles.diagram}>
-              <PianoVoicingBox
-                lh={v.lh}
-                rh={v.rh}
-                root={root}
-                chordKey={chordKey}
-                maxWidth={cardInner}
-              />
-            </View>
-
-            <Text style={styles.blurb}>{v.blurb}</Text>
-
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>LEFT HAND</Text>
-              <Text style={styles.metaValue}>{v.leftHand}</Text>
-              {v.lh.length > 0 && (
-                <Text style={styles.metaNotes}>
-                  {v.lh.map(noteName).join(' · ')}
-                </Text>
+              {locked ? (
+                <View style={[styles.lockedDiagram, { width: cardInner }]}>
+                  <Text style={styles.lockIcon}>🔒</Text>
+                  <Text style={styles.lockedText}>
+                    {'Unlock with Pro to reveal & hear this voicing'}
+                  </Text>
+                </View>
+              ) : (
+                <PianoVoicingBox
+                  lh={v.lh}
+                  rh={v.rh}
+                  root={root}
+                  chordKey={chordKey}
+                  maxWidth={cardInner}
+                />
               )}
             </View>
+
+            {/* Blurb is marketing copy — it sells the sound without revealing
+                the actual notes, so it's safe to show on locked cards too. */}
+            <Text style={styles.blurb}>{v.blurb}</Text>
+
+            {/* The specific left-hand notes ARE the value — hide them when
+                locked so the diagram can't be read off the screen for free. */}
+            {!locked && (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>LEFT HAND</Text>
+                <Text style={styles.metaValue}>{v.leftHand}</Text>
+                {v.lh.length > 0 && (
+                  <Text style={styles.metaNotes}>
+                    {v.lh.map(noteName).join(' · ')}
+                  </Text>
+                )}
+              </View>
+            )}
           </TouchableOpacity>
         );
       })}
@@ -112,6 +135,21 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accent,
     backgroundColor: COLORS.accentSoft,
   },
+  // Don't dim locked cards — keep the teaser copy readable and enticing. The
+  // header lock glyph + locked diagram panel already signal it's gated. A faint
+  // accent border reads as "premium" rather than "disabled".
+  cardLocked: { borderColor: COLORS.accentGlow },
+
+  lockedDiagram: {
+    height: 92,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceHigh,
+    borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+    gap: 6,
+  },
+  lockIcon: { fontSize: 20 },
+  lockedText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
 
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACE.sm },
   tagPill: {
