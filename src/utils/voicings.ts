@@ -123,6 +123,50 @@ export function realize(voicing: Voicing, lhId: LeftHandId, chordKey: string): {
   return fitRange(uniqSort(lh), voicing.rh);
 }
 
+// ── Upper-structure triads ─────────────────────────────────────────────────────
+// A major/minor triad played up top whose notes are all consonant extensions of
+// the chord below — the "triad over bass" trick producers love. These are
+// chord-specific (a triad that's right over a 7♯11 would clash over a 7♭9), so
+// the mapping is an explicit, hand-verified table rather than a formula. Each
+// entry's three notes were checked to be genuine chord tones / non-clashing
+// tensions for that exact chord quality.
+interface UstDef {
+  quality: 'maj' | 'min';
+  offset: number;  // triad root, semitones above the chord root
+  adds: string;    // the tensions the triad spells, for the blurb
+}
+
+const UPPER_STRUCTURE: Record<string, UstDef> = {
+  // Dominant family — II major = 9 · #11 · 13 (Lydian-dominant color)
+  'Dominant 7':  { quality: 'maj', offset: 2,  adds: '9·♯11·13' },
+  'Dominant 9':  { quality: 'maj', offset: 2,  adds: '9·♯11·13' },
+  'Dominant 13': { quality: 'maj', offset: 2,  adds: '9·♯11·13' },
+  'Dom 7♯11':    { quality: 'maj', offset: 2,  adds: '9·♯11·13' },
+  'Dom 7♭5':     { quality: 'maj', offset: 2,  adds: '9·♭5·13' },
+  'Dom 7♯9':     { quality: 'maj', offset: 3,  adds: '♯9·5·♭7' },   // ♭III major
+  'Dom 7♭9':     { quality: 'maj', offset: 6,  adds: '♭9·♯11·♭7' }, // ♭V (tritone) major
+  'Dom 7sus4':   { quality: 'maj', offset: 10, adds: '♭7·9·11' },   // ♭VII major
+  // Major family — V major = 5 · 7 · 9
+  'Major 7':     { quality: 'maj', offset: 7,  adds: '5·7·9' },
+  'Major 9':     { quality: 'maj', offset: 7,  adds: '5·7·9' },
+  'Maj7♯11':     { quality: 'maj', offset: 2,  adds: '9·♯11·13' },  // II major (Lydian)
+  // Minor family — ♭VII major = ♭7 · 9 · 11 (m11 color)
+  'Minor 7':     { quality: 'maj', offset: 10, adds: '♭7·9·11' },
+  'Minor 9':     { quality: 'maj', offset: 10, adds: '♭7·9·11' },
+  'Minor 11':    { quality: 'maj', offset: 10, adds: '♭7·9·11' },
+};
+
+// Stacked-fourths voicing, chosen per chord family so every note stays diatonic.
+// Returns the right-hand notes, or null if quartal doesn't suit the chord.
+function quartalRh(R: number, t: Tones, names: string[]): number[] | null {
+  const ALTS = ['♭9', '♯9', '♭5', '♯11', '♯5'];
+  const hasAlt = names.some(n => ALTS.includes(n));
+  if (t.isMinor && t.hasFlat7) return [R + 5, R + 10, R + 15];               // R·11·♭7·♭3 — modal minor
+  if (names.includes('4') && !names.includes('3')) return [R + 7, R + 12, R + 17]; // 5·R·4 — sus
+  if (names.includes('3') && t.hasFlat7 && !hasAlt) return [R + 9, R + 14, R + 19]; // 13·9·5 — dominant
+  return null;
+}
+
 // ── Right-hand shapes ──────────────────────────────────────────────────────────
 export function buildVoicings(root: number, chordKey: string): Voicing[] {
   const ch = CHORDS[chordKey];
@@ -194,11 +238,22 @@ export function buildVoicings(root: number, chordKey: string): Voicing[] {
       ]));
   }
 
-  // 8 — Quartal: stacked perfect 4ths. Minor-7 family only (stays diatonic).
-  if (t.isMinor && t.hasFlat7) {
+  // 8 — Upper-structure triad: a triad up top spelling consonant extensions.
+  const ust = UPPER_STRUCTURE[chordKey];
+  if (ust) {
+    const tq = ust.quality === 'maj' ? 4 : 3;
+    out.push(mk('ust', 'Upper structure', 'UST',
+      `An upper-structure ${ust.quality === 'maj' ? 'major' : 'minor'} triad up top — adds ${ust.adds}. The triad-over-bass trick.`,
+      [R + ust.offset, R + ust.offset + tq, R + ust.offset + 7]));
+  }
+
+  // 9 — Quartal: stacked perfect 4ths, family-specific so it stays diatonic
+  // (modal minor, sus, or clean dominant — altered dominants get the UST instead).
+  const quartal = quartalRh(R, t, ch.intervalNames);
+  if (quartal) {
     out.push(mk('quartal', 'Quartal', 'QUARTAL',
-      'Stacked fourths — the modal, lo-fi / neo-soul sound.',
-      [R + 5, R + 10, R + 15]));
+      'Stacked fourths — open, modal, modern. The lo-fi / neo-soul sound.',
+      quartal));
   }
 
   // Drop any RH shape that's an exact duplicate of an earlier one (e.g. drop
