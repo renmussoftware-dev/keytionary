@@ -1,10 +1,12 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, useWindowDimensions,
+  View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, ScrollView,
 } from 'react-native';
 import { COLORS, SPACE, RADIUS, FONT_FAMILY } from '../constants/theme';
 import { NOTES } from '../constants/music';
-import { buildVoicings } from '../utils/voicings';
+import {
+  buildVoicings, realize, LEFT_HAND_PATTERNS, LeftHandId,
+} from '../utils/voicings';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useProGate } from '../hooks/useProGate';
 import { isVoicingFree } from '../constants/subscription';
@@ -24,9 +26,26 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
   const { isPro, requirePro } = useProGate();
   const voicings = useMemo(() => buildVoicings(root, chordKey), [root, chordKey]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // The left-hand foundation, applied to every voicing. Default to root+5th —
+  // the most common comping left hand and an immediate "two-hand" payoff.
+  const [lhId, setLhId] = useState<LeftHandId>('root5');
 
   // Reset highlight when the chord/root changes so a stale id doesn't linger.
   useEffect(() => { setActiveId(null); }, [root, chordKey]);
+
+  // When the left hand changes, re-play whatever's active so you instantly
+  // HEAR the foundation change under the same right-hand shape — the core
+  // demonstration of the two-hand idea. Skip the initial mount.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    if (!activeId) return;
+    const v = voicings.find(x => x.id === activeId);
+    if (!v || (!isPro && !isVoicingFree(v.id))) return;
+    const { lh, rh } = realize(v, lhId, chordKey);
+    playChord([...lh, ...rh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lhId]);
 
   // Card spans the screen minus the screen's horizontal padding (SPACE.lg on
   // each side from the parent) and the card's own inner padding.
@@ -45,14 +64,39 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
 
   return (
     <View style={styles.wrap}>
+      {/* Left-hand picker — the second pillar. Swap the foundation under every
+          voicing and hear it change. Free to use; only the gated RH shapes lock. */}
+      <View style={styles.lhPicker}>
+        <Text style={styles.lhPickerLabel}>LEFT HAND</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.lhPills}
+        >
+          {LEFT_HAND_PATTERNS.map(p => (
+            <TouchableOpacity
+              key={p.id}
+              activeOpacity={0.7}
+              onPress={() => setLhId(p.id)}
+              style={[styles.lhPill, lhId === p.id && styles.lhPillActive]}
+            >
+              <Text style={[styles.lhPillText, lhId === p.id && styles.lhPillTextActive]}>
+                {p.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {voicings.map(v => {
         const active = v.id === activeId;
         const locked = !isPro && !isVoicingFree(v.id);
+        const { lh, rh } = realize(v, lhId, chordKey);
         return (
           <TouchableOpacity
             key={v.id}
             activeOpacity={0.85}
-            onPress={() => play(v.id, v.lh, v.rh)}
+            onPress={() => play(v.id, lh, rh)}
             style={[styles.card, active && styles.cardActive, locked && styles.cardLocked]}
           >
             <View style={styles.headerRow}>
@@ -74,8 +118,8 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
                 </View>
               ) : (
                 <PianoVoicingBox
-                  lh={v.lh}
-                  rh={v.rh}
+                  lh={lh}
+                  rh={rh}
                   root={root}
                   chordKey={chordKey}
                   maxWidth={cardInner}
@@ -92,12 +136,9 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
             {!locked && (
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>LEFT HAND</Text>
-                <Text style={styles.metaValue}>{v.leftHand}</Text>
-                {v.lh.length > 0 && (
-                  <Text style={styles.metaNotes}>
-                    {v.lh.map(noteName).join(' · ')}
-                  </Text>
-                )}
+                <Text style={styles.metaNotes}>
+                  {lh.length > 0 ? lh.map(noteName).join(' · ') : '—'}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -124,6 +165,27 @@ function noteName(midi: number): string {
 
 const styles = StyleSheet.create({
   wrap: { gap: SPACE.md, marginBottom: SPACE.lg },
+
+  lhPicker: { gap: 6 },
+  lhPickerLabel: {
+    fontSize: 9, fontWeight: '700',
+    color: COLORS.textFaint, letterSpacing: 1,
+    fontFamily: FONT_FAMILY.mono,
+  },
+  lhPills: { flexDirection: 'row', gap: 6, paddingRight: SPACE.md },
+  lhPill: {
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  lhPillActive: { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accent },
+  lhPillText: {
+    fontSize: 12, fontWeight: '600',
+    color: COLORS.textMuted,
+    fontFamily: FONT_FAMILY.mono, letterSpacing: 0.2,
+  },
+  lhPillTextActive: { color: COLORS.text },
 
   card: {
     backgroundColor: COLORS.surface,
@@ -183,7 +245,6 @@ const styles = StyleSheet.create({
     color: COLORS.textFaint, letterSpacing: 1,
     fontFamily: FONT_FAMILY.mono,
   },
-  metaValue: { fontSize: 12, fontWeight: '600', color: COLORS.text },
   metaNotes: {
     fontSize: 11, color: COLORS.textMuted,
     fontFamily: FONT_FAMILY.mono, marginLeft: 'auto',
