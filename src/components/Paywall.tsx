@@ -16,6 +16,35 @@ interface Props {
   onSuccess?: () => void;
 }
 
+// RevenueCat surfaces a free trial on the product as `introPrice` with
+// price === 0. We normalise the period into days so the UI just uses a stable
+// "N-day" label. The product typing varies across react-native-purchases
+// versions, so cast through any rather than vendor the union.
+interface TrialInfo { label: string; days: number; }
+
+function getTrialInfo(pkg: PurchasesPackage): TrialInfo | null {
+  const intro = (pkg.product as any).introPrice as
+    | { price: number; periodUnit?: string; periodNumberOfUnits?: number }
+    | null
+    | undefined;
+  if (!intro || intro.price !== 0) return null;
+  const n = intro.periodNumberOfUnits ?? 0;
+  if (n <= 0) return null;
+  const unit = (intro.periodUnit ?? 'DAY').toUpperCase();
+  const days =
+    unit === 'YEAR'  ? n * 365 :
+    unit === 'MONTH' ? n * 30  :
+    unit === 'WEEK'  ? n * 7   :
+    n;
+  return { label: `${days}-day`, days };
+}
+
+function periodWord(pkg: PurchasesPackage): string {
+  return pkg.packageType === PACKAGE_TYPE.MONTHLY ? 'month'
+       : pkg.packageType === PACKAGE_TYPE.ANNUAL  ? 'year'
+       : '';
+}
+
 export default function Paywall({ onClose, onSuccess }: Props) {
   const { isLoading, isPro, packages, purchasePackage, restorePurchases } = useRevenueCat();
   const [purchasing, setPurchasing] = useState(false);
@@ -152,6 +181,7 @@ export default function Paywall({ onClose, onSuccess }: Props) {
             const { title, badge, highlight } = getPackageLabel(pkg);
             const features = getFeatures(pkg);
             const selected = selectedIdx === i;
+            const trial = getTrialInfo(pkg);
 
             return (
               <TouchableOpacity
@@ -178,6 +208,13 @@ export default function Paywall({ onClose, onSuccess }: Props) {
                     </Text>
                   </View>
                 </View>
+                {trial && (
+                  <View style={styles.trialPill}>
+                    <Text style={styles.trialPillText}>
+                      Includes {trial.label} free trial — then {pkg.product.priceString}/{periodWord(pkg)}, cancel anytime
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.divider} />
                 {features.map((f, fi) => (
                   <View key={fi} style={styles.featureRow}>
@@ -208,11 +245,14 @@ export default function Paywall({ onClose, onSuccess }: Props) {
           {purchasing
             ? <ActivityIndicator color="#1a1400" />
             : <Text style={styles.ctaText}>
-                {sorted[selectedIdx]?.packageType === PACKAGE_TYPE.LIFETIME
-                  ? 'Buy Lifetime Access'
-                  : sorted[selectedIdx]?.packageType === PACKAGE_TYPE.MONTHLY
-                  ? 'Subscribe Monthly'
-                  : 'Subscribe Annually'}
+                {(() => {
+                  const sel = sorted[selectedIdx];
+                  if (!sel) return 'Continue';
+                  if (sel.packageType === PACKAGE_TYPE.LIFETIME) return 'Buy Lifetime Access';
+                  const t = getTrialInfo(sel);
+                  if (t) return `Start ${t.label} Free Trial`;
+                  return sel.packageType === PACKAGE_TYPE.MONTHLY ? 'Subscribe Monthly' : 'Subscribe Annually';
+                })()}
               </Text>
           }
         </TouchableOpacity>
@@ -226,6 +266,7 @@ export default function Paywall({ onClose, onSuccess }: Props) {
           {Platform.OS === 'ios'
             ? 'Keytionary Pro — Monthly or Annual auto-renewable subscription. Payment will be charged to your Apple ID at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your App Store account settings after purchase.'
             : 'Keytionary Pro — Monthly or Annual auto-renewing subscription. Payment will be charged to your Google account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel subscriptions in the Google Play Store under Subscriptions after purchase.'}
+          {sorted.some(p => getTrialInfo(p) !== null) && ' Any free trial automatically converts to a paid subscription at the end of the trial period unless cancelled at least 24 hours before the trial ends.'}
         </Text>
 
         <View style={styles.legalLinks}>
@@ -283,6 +324,17 @@ const styles = StyleSheet.create({
   price:            { fontSize: 24, fontWeight: '800', color: COLORS.text },
   priceHighlight:   { color: COLORS.accent },
   pricePer:         { fontSize: 12, color: COLORS.textMuted },
+
+  trialPill:        {
+                      backgroundColor: COLORS.accentSoft,
+                      borderRadius: RADIUS.md,
+                      paddingVertical: 8, paddingHorizontal: 12,
+                      marginBottom: SPACE.md,
+                    },
+  trialPillText:    {
+                      fontSize: 12, fontWeight: '600',
+                      color: COLORS.accent, textAlign: 'center',
+                    },
 
   divider:          { height: 1, backgroundColor: COLORS.border, marginBottom: SPACE.md },
 
