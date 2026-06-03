@@ -290,7 +290,10 @@ export default function ProgressionsScreen() {
     const chordRoot = progRoots[i] ?? 0;
     const chordType = activeProg.chordTypes[i] ?? 'Major';
     const inv = stepInversions[i] ?? 0;
-    playChord(getChordMidi(chordRoot, chordType, 4, inv));
+    // Progression audio is Pro — let free users navigate the carousel visually
+    // but only Pro users hear the chord. The Play button itself routes to the
+    // paywall, so the upgrade pressure stays focused there.
+    if (isPro) playChord(getChordMidi(chordRoot, chordType, 4, inv));
   }
 
   // Set the current step's inversion. Only meaningful when subMode === 'custom'
@@ -311,7 +314,9 @@ export default function ProgressionsScreen() {
     ));
     const chordRoot = progRoots[stepIdx] ?? 0;
     const chordType = activeProg.chordTypes[stepIdx] ?? 'Major';
-    playChord(getChordMidi(chordRoot, chordType, 4, n));
+    // Same Pro gate as goTo — inversion changes still update the UI for free
+    // users, but only Pro users hear the result.
+    if (isPro) playChord(getChordMidi(chordRoot, chordType, 4, n));
   }
 
   // Bump a step's inversion by +/-1, clamped at [0, maxForChord]. Used by the
