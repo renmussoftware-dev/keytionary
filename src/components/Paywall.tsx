@@ -57,11 +57,15 @@ export default function Paywall({ onClose, onSuccess }: Props) {
     logPaywallViewed();
   }, []);
 
-  // Sort packages: monthly, annual, lifetime
-  const sorted = [...packages].sort((a, b) => {
-    const order = [PACKAGE_TYPE.MONTHLY, PACKAGE_TYPE.ANNUAL, PACKAGE_TYPE.LIFETIME];
-    return order.indexOf(a.packageType) - order.indexOf(b.packageType);
-  });
+  // Only Monthly and Lifetime are offered. We defensively filter rather than
+  // just sort — if the RevenueCat offering still includes an annual package
+  // during the transition, it simply won't render.
+  const sorted = packages
+    .filter(p => p.packageType === PACKAGE_TYPE.MONTHLY || p.packageType === PACKAGE_TYPE.LIFETIME)
+    .sort((a, b) => {
+      const order = [PACKAGE_TYPE.MONTHLY, PACKAGE_TYPE.LIFETIME];
+      return order.indexOf(a.packageType) - order.indexOf(b.packageType);
+    });
 
   async function handlePurchase(pkg: PurchasesPackage) {
     // Fire "initiated checkout" the moment the user commits to attempting
@@ -112,8 +116,10 @@ export default function Paywall({ onClose, onSuccess }: Props) {
   function getPackageLabel(pkg: PurchasesPackage) {
     switch (pkg.packageType) {
       case PACKAGE_TYPE.MONTHLY:  return { title: 'Monthly', badge: null, highlight: false };
-      case PACKAGE_TYPE.ANNUAL:   return { title: 'Annual', badge: 'BEST VALUE', highlight: true };
-      case PACKAGE_TYPE.LIFETIME: return { title: 'Lifetime', badge: 'ONE TIME', highlight: false };
+      case PACKAGE_TYPE.LIFETIME: return { title: 'Lifetime', badge: 'BEST VALUE', highlight: true };
+      // Annual is no longer offered. Kept here only as a no-op fallback in
+      // case a stale RC offering still returns one — the filter above drops it.
+      case PACKAGE_TYPE.ANNUAL:   return { title: 'Annual', badge: null, highlight: false };
       default:                    return { title: pkg.identifier, badge: null, highlight: false };
     }
   }
@@ -122,10 +128,14 @@ export default function Paywall({ onClose, onSuccess }: Props) {
     switch (pkg.packageType) {
       case PACKAGE_TYPE.MONTHLY:
         return ['All 14 scales & modes', 'Full chord library (35 types)', 'All progressions', 'Real piano audio'];
-      case PACKAGE_TYPE.ANNUAL:
-        return ['Everything in Monthly', 'Save 48% vs monthly', 'Diatonic chord explorer', 'Custom progression builder'];
       case PACKAGE_TYPE.LIFETIME:
-        return ['Everything in Annual', 'Pay once, own forever', 'All future updates', 'No recurring charge'];
+        return [
+          'Pay once, own forever',
+          'Cheaper than 6 months of Monthly',
+          'Everything in Monthly',
+          'All future updates included',
+          'No recurring charge',
+        ];
       default:
         return [];
     }
@@ -264,8 +274,8 @@ export default function Paywall({ onClose, onSuccess }: Props) {
 
         <Text style={styles.legal}>
           {Platform.OS === 'ios'
-            ? 'Keytionary Pro — Monthly or Annual auto-renewable subscription. Payment will be charged to your Apple ID at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your App Store account settings after purchase.'
-            : 'Keytionary Pro — Monthly or Annual auto-renewing subscription. Payment will be charged to your Google account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel subscriptions in the Google Play Store under Subscriptions after purchase.'}
+            ? 'Keytionary Pro — Monthly is an auto-renewable subscription; Lifetime is a one-time purchase. Payment will be charged to your Apple ID at confirmation of purchase. The monthly subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your App Store account settings after purchase.'
+            : 'Keytionary Pro — Monthly is an auto-renewing subscription; Lifetime is a one-time purchase. Payment will be charged to your Google account at confirmation of purchase. The monthly subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Manage or cancel subscriptions in the Google Play Store under Subscriptions after purchase.'}
           {sorted.some(p => getTrialInfo(p) !== null) && ' Any free trial automatically converts to a paid subscription at the end of the trial period unless cancelled at least 24 hours before the trial ends.'}
         </Text>
 
