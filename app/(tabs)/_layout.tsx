@@ -28,24 +28,26 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Chords is the hero — file lives at app/(tabs)/index.tsx so it owns
+          the root route '/' and is the first tab the user sees on launch. */}
       <Tabs.Screen
         name="index"
-        options={{
-          title: 'Keyboard',
-          tabBarIcon: ({ color }) => <KeyboardIcon color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="chords"
         options={{
           title: 'Chords',
           tabBarIcon: ({ color }) => <ChordIcon color={color} />,
         }}
       />
       <Tabs.Screen
+        name="keyboard"
+        options={{
+          title: 'Keyboard',
+          tabBarIcon: ({ color }) => <KeyboardIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="progressions"
         options={{
-          title: 'Chords',
+          title: 'Progressions',
           tabBarIcon: ({ color }) => <ProgressionsIcon color={color} />,
           tabBarLabel: 'Progressions',
         }}

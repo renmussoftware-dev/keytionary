@@ -60,10 +60,13 @@ export default function SavedSheet({ visible, onClose }: Props) {
     if (it.kind === 'scale') {
       setScaleKey(it.scaleKey);
       setMode('scales');
-      router.push('/');
+      // Cast: expo-router's typed-routes file regenerates on the next Metro
+      // restart after the tab rename; until then '/keyboard' isn't in the
+      // generated union. Runtime is unaffected.
+      router.push('/keyboard' as any);
     } else if (it.kind === 'chord') {
       setPendingNav(it);
-      router.push('/chords');
+      router.push('/');
     } else {
       setPendingNav(it);
       router.push('/progressions');
