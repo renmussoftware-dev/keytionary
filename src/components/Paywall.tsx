@@ -45,10 +45,52 @@ function periodWord(pkg: PurchasesPackage): string {
        : '';
 }
 
+// Build the App Store / Play required legal disclosure block from the actual
+// set of packages on offer, so the wording stays correct when you add or
+// remove tiers (or move the trial) in RevenueCat without touching code.
+function buildLegalText(sorted: PurchasesPackage[], platform: string): string {
+  const hasMonthly  = sorted.some(p => p.packageType === PACKAGE_TYPE.MONTHLY);
+  const hasAnnual   = sorted.some(p => p.packageType === PACKAGE_TYPE.ANNUAL);
+  const hasLifetime = sorted.some(p => p.packageType === PACKAGE_TYPE.LIFETIME);
+  const hasTrial    = sorted.some(p => getTrialInfo(p) !== null);
+  const hasSub      = hasMonthly || hasAnnual;
+
+  const subTitles  = [hasMonthly && 'Monthly', hasAnnual && 'Annual'].filter(Boolean) as string[];
+  const subList    = subTitles.length === 2 ? 'Monthly and Annual' : (subTitles[0] ?? '');
+  const subVerb    = subTitles.length === 2 ? 'are' : 'is';
+  const subWord    = platform === 'ios' ? 'an auto-renewable subscription' : 'an auto-renewing subscription';
+  const subPlural  = subTitles.length === 2 ? 's' : '';
+  const subClause  = `${subList} ${subVerb} ${subWord}${subPlural}`;
+
+  let intro: string;
+  if (hasSub && hasLifetime)      intro = `Keytionary Pro — ${subClause}; Lifetime is a one-time purchase.`;
+  else if (hasSub)                intro = `Keytionary Pro — ${subClause}.`;
+  else if (hasLifetime)           intro = 'Keytionary Pro Lifetime is a one-time purchase.';
+  else                            intro = '';
+
+  const charge = platform === 'ios'
+    ? 'Payment will be charged to your Apple ID at confirmation of purchase.'
+    : 'Payment will be charged to your Google account at confirmation of purchase.';
+
+  const renew = !hasSub ? '' : (platform === 'ios'
+    ? 'Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your App Store account settings after purchase.'
+    : 'Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel subscriptions in the Google Play Store under Subscriptions after purchase.');
+
+  const trial = hasTrial
+    ? 'Any free trial automatically converts to a paid subscription at the end of the trial period unless cancelled at least 24 hours before the trial ends.'
+    : '';
+
+  return [intro, charge, renew, trial].filter(Boolean).join(' ');
+}
+
 export default function Paywall({ onClose, onSuccess }: Props) {
   const { isLoading, isPro, packages, purchasePackage, restorePurchases } = useRevenueCat();
   const [purchasing, setPurchasing] = useState(false);
-  const [selectedIdx, setSelectedIdx] = useState(1); // Default to annual
+  // Default selection is computed from the actual packages once they load —
+  // see the effect below. Starts at 0 so the first card is highlighted while
+  // RevenueCat is fetching, then re-targets to the trial-bearing card (or a
+  // sensible middle/last card if no trial is offered).
+  const [selectedIdx, setSelectedIdx] = useState(0);
 
   // Fire the Meta "viewed content" event the first time the paywall mounts.
   // Captures intent — every user who got far enough to see the paywall —
@@ -57,9 +99,9 @@ export default function Paywall({ onClose, onSuccess }: Props) {
     logPaywallViewed();
   }, []);
 
-  // Three offered tiers: Monthly, Annual (free-trial entry point), Lifetime
-  // (BEST VALUE for the high-conviction buyer). We filter explicitly so any
-  // experimental packages RevenueCat returns can't accidentally render.
+  // Whatever subset of Monthly / Annual / Lifetime RevenueCat returns is what
+  // gets rendered — the filter is just a safety net against unknown types.
+  // Add or remove tiers in the RevenueCat offering and the paywall follows.
   const sorted = packages
     .filter(p =>
       p.packageType === PACKAGE_TYPE.MONTHLY ||
@@ -69,6 +111,18 @@ export default function Paywall({ onClose, onSuccess }: Props) {
       const order = [PACKAGE_TYPE.MONTHLY, PACKAGE_TYPE.ANNUAL, PACKAGE_TYPE.LIFETIME];
       return order.indexOf(a.packageType) - order.indexOf(b.packageType);
     });
+
+  // Smart default: when packages load (or change), pre-select the card with a
+  // free trial — that's the lowest-friction entry. If no trial is on offer,
+  // fall back to the second card (commonly the "best deal" position) or the
+  // only card available.
+  const sortedKey = sorted.map(p => p.identifier).join('|');
+  useEffect(() => {
+    if (sorted.length === 0) return;
+    const trialIdx = sorted.findIndex(p => getTrialInfo(p) !== null);
+    setSelectedIdx(trialIdx >= 0 ? trialIdx : Math.min(1, sorted.length - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedKey]);
 
   async function handlePurchase(pkg: PurchasesPackage) {
     // Fire "initiated checkout" the moment the user commits to attempting
@@ -282,10 +336,7 @@ export default function Paywall({ onClose, onSuccess }: Props) {
         </TouchableOpacity>
 
         <Text style={styles.legal}>
-          {Platform.OS === 'ios'
-            ? 'Keytionary Pro — Monthly and Annual are auto-renewable subscriptions; Lifetime is a one-time purchase. Payment will be charged to your Apple ID at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your App Store account settings after purchase.'
-            : 'Keytionary Pro — Monthly and Annual are auto-renewing subscriptions; Lifetime is a one-time purchase. Payment will be charged to your Google account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel subscriptions in the Google Play Store under Subscriptions after purchase.'}
-          {sorted.some(p => getTrialInfo(p) !== null) && ' Any free trial automatically converts to a paid subscription at the end of the trial period unless cancelled at least 24 hours before the trial ends.'}
+          {buildLegalText(sorted, Platform.OS)}
         </Text>
 
         <View style={styles.legalLinks}>
