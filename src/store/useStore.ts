@@ -21,6 +21,17 @@ export type SavedItemInput = DistributiveOmit<SavedItem, 'addedAt'>;
 
 const RECENTS_MAX = 20;
 
+// Proactive Pro-prompt triggers — see recordVoicingPlay / recordFavoriteAdded.
+// Catches users at peak intent (just heard a beautiful voicing, just committed
+// to a favorite) instead of only at peak frustration (tapped a locked thing).
+const VOICING_PROMPT_THRESHOLD = 6;
+
+export interface ProPromptSpec {
+  source: 'voicings' | 'favorite';
+  title: string;
+  subtitle: string;
+}
+
 function itemKey(it: SavedItemInput): string {
   switch (it.kind) {
     case 'scale':       return `s:${it.root}:${it.scaleKey}`;
@@ -47,6 +58,15 @@ interface AppState {
   positiveActionCount: number;
   lastPromptedAt: number | null;
   recordPositiveAction: () => void;
+
+  // ── Proactive Pro-prompt state ─────────────────────────────────────────────
+  sessionVoicingPlays: number;        // resets on cold start (not persisted)
+  sessionPromptFired: boolean;        // at most one Pro prompt per session
+  firstFavoritePromptShown: boolean;  // persisted — favorite prompt fires once ever
+  proPrompt: ProPromptSpec | null;    // when set, ProPromptSheet renders
+  recordVoicingPlay: () => void;
+  recordFavoriteAdded: () => void;
+  dismissProPrompt: () => void;
 
   pendingNav: SavedItem | null;
   setPendingNav: (item: SavedItem | null) => void;
@@ -79,9 +99,57 @@ export const useStore = create<AppState>()(
       installedAt: 0,
       positiveActionCount: 0,
       lastPromptedAt: null,
+
+      sessionVoicingPlays: 0,
+      sessionPromptFired: false,
+      firstFavoritePromptShown: false,
+      proPrompt: null,
+
       pendingNav: null,
 
       setPendingNav: (pendingNav) => set({ pendingNav }),
+
+      // Fires the Pro prompt the first time a non-Pro user has played enough
+      // free voicings in a session to feel the value — the "this finally
+      // exists" moment. Once per session (sessionPromptFired prevents
+      // repeats). The counter resets on cold start.
+      recordVoicingPlay: () => {
+        const s = get();
+        if (s.isPro || s.sessionPromptFired) return;
+        const next = s.sessionVoicingPlays + 1;
+        set({ sessionVoicingPlays: next });
+        if (next < VOICING_PROMPT_THRESHOLD) return;
+        set({
+          sessionPromptFired: true,
+          proPrompt: {
+            source: 'voicings',
+            title: "Like what you're hearing?",
+            subtitle:
+              'Unlock every voicing — drop-2, drop-3, shell, rootless, quartal, upper-structure — and swap what your left hand plays under any of them.',
+          },
+        });
+      },
+
+      // Fires the Pro prompt the first ever time a non-Pro user adds a
+      // favorite. Persisted (firstFavoritePromptShown) so it never fires
+      // again on this install, and gated by sessionPromptFired so it can't
+      // pile onto a voicing prompt that already fired this session.
+      recordFavoriteAdded: () => {
+        const s = get();
+        if (s.isPro || s.firstFavoritePromptShown || s.sessionPromptFired) return;
+        set({
+          firstFavoritePromptShown: true,
+          sessionPromptFired: true,
+          proPrompt: {
+            source: 'favorite',
+            title: 'Save it forever.',
+            subtitle:
+              'You just saved your first favorite. Go Pro to unlock the full library — every chord, every scale, every progression — to favorite anything.',
+          },
+        });
+      },
+
+      dismissProPrompt: () => set({ proPrompt: null }),
 
       recordPositiveAction: () => {
         const now = Date.now();
@@ -125,6 +193,7 @@ export const useStore = create<AppState>()(
         } else {
           set({ favorites: [{ ...item, addedAt: Date.now() } as SavedItem, ...current] });
           get().recordPositiveAction();
+          get().recordFavoriteAdded();
         }
       },
 
@@ -151,6 +220,7 @@ export const useStore = create<AppState>()(
         installedAt: s.installedAt,
         positiveActionCount: s.positiveActionCount,
         lastPromptedAt: s.lastPromptedAt,
+        firstFavoritePromptShown: s.firstFavoritePromptShown,
       }),
     },
   ),

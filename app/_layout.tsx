@@ -13,6 +13,7 @@ import {
   JetBrainsMono_700Bold,
 } from '@expo-google-fonts/jetbrains-mono';
 import Onboarding from '../src/components/Onboarding';
+import ProPromptSheet from '../src/components/ProPromptSheet';
 import { initAnalytics, logOnboardingComplete } from '../src/lib/analytics';
 
 const ONBOARDING_KEY = 'keytionary_onboarded_v1';
@@ -70,16 +71,22 @@ export default function RootLayout() {
       {showOnboarding ? (
         <Onboarding onDone={finishOnboarding} />
       ) : (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="paywall"
-            options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
-            }}
-          />
-        </Stack>
+        <>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="paywall"
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+              }}
+            />
+          </Stack>
+          {/* Proactive Pro prompt — fires at engagement moments (voicing
+              threshold reached, first favorite added). Modal-based so it
+              overlays any tab. */}
+          <ProPromptSheet />
+        </>
       )}
     </GestureHandlerRootView>
   );

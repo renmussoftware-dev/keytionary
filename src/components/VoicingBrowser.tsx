@@ -9,6 +9,7 @@ import {
 } from '../utils/voicings';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useProGate } from '../hooks/useProGate';
+import { useStore } from '../store/useStore';
 import { isVoicingFree } from '../constants/subscription';
 import PianoVoicingBox from './PianoVoicingBox';
 
@@ -24,6 +25,7 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
   const { width: screenW } = useWindowDimensions();
   const { playChord } = useAudioEngine();
   const { isPro, requirePro } = useProGate();
+  const recordVoicingPlay = useStore(s => s.recordVoicingPlay);
   const voicings = useMemo(() => buildVoicings(root, chordKey), [root, chordKey]);
   const [activeId, setActiveId] = useState<string | null>(null);
   // The left-hand foundation, applied to every voicing. Default to root+5th —
@@ -58,7 +60,14 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
   // with the voicing id (so Ads Manager shows which voicing converts best).
   function play(id: string, lh: number[], rh: number[]) {
     const fire = () => { setActiveId(id); playChord([...lh, ...rh]); };
-    if (isVoicingFree(id)) { fire(); return; }
+    if (isVoicingFree(id)) {
+      fire();
+      // Count toward the proactive Pro-prompt threshold (the store gates
+      // internally on isPro + session/lifetime flags, so this is safe to
+      // call unconditionally).
+      recordVoicingPlay();
+      return;
+    }
     requirePro(fire, `voicing:${id}`);
   }
 
