@@ -120,11 +120,35 @@ export function logCheckoutInitiated(plan: 'monthly' | 'annual' | 'lifetime', pr
 }
 
 /**
- * Custom event — fired when a user taps a Pro-locked feature. Powerful
- * signal: the user actively *wanted* a Pro feature but didn't subscribe.
- * Use for retargeting audiences and to find which locks drive the most
- * conversion intent.
+ * Fired when a user expresses Pro intent — either by tapping a Pro-locked
+ * feature (reactive: "voicing:rootless", "chord:Maj13", etc.) or by hitting
+ * a proactive prompt threshold ("prompt:voicings", "prompt:favorite"). We
+ * fire two events for each hit:
+ *
+ *   • pro_lock_hit (custom) — granular per-feature counts for funnel
+ *     analysis in Events Manager. Tells you which features drive the most
+ *     conversion intent.
+ *
+ *   • AddedToWishlist (standard) — Meta's canonical "user wanted this but
+ *     didn't buy" signal. Standard events get heavier weight in conversion
+ *     optimization than custom events, and unlock retargeting + lookalike
+ *     audiences out of the box. The value gives Meta a worth-hint for
+ *     value-based optimization; set to the Monthly price floor so it stays
+ *     conservative regardless of which tier the user eventually picks.
+ *
+ * In Ads Manager you can now: (1) optimize campaigns toward AddedToWishlist
+ * as the conversion event, (2) build a Custom Audience of "people who
+ * AddedToWishlist but not Purchase" for retargeting, (3) build a Lookalike
+ * Audience off that for prospecting.
  */
+const LOCK_HIT_VALUE_USD = 7.99;
+
 export function logProLockHit(feature: string): void {
   safeLog('pro_lock_hit', { feature });
+  safeLog(AppEventsLogger.AppEvents.AddedToWishlist, {
+    fb_content_id: feature,
+    fb_content_type: 'pro_feature',
+    _valueToSum: LOCK_HIT_VALUE_USD,
+    fb_currency: 'USD',
+  });
 }
