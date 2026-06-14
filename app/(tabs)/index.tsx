@@ -38,7 +38,11 @@ export default function ChordsScreen() {
   const { isPro, requirePro } = useProGate();
   const { playChord } = useAudioEngine();
   const [category, setCategory] = useState('All');
-  const [selectedChord, setSelectedChord] = useState('Major');
+  // Default to Major 7 (rather than Major triad) so the landing screen shows
+  // the full voicing range — drop-2, drop-3, drop-2&4, shell, rootless,
+  // spread, upper-structure all need a 4+ note chord. The triad would
+  // collapse the voicing browser to just Close, Open, Shell and Spread.
+  const [selectedChord, setSelectedChord] = useState('Major 7');
   const [selectedInversion, setSelectedInversion] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
