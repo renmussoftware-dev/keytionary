@@ -71,6 +71,11 @@ function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickIn
       <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.miniBoxTap}>
         <Text style={[styles.miniNum, active && styles.miniNumActive]}>{numeral}</Text>
         <PianoChordBox root={root} chordKey={chordKey} inversion={inversion} compact />
+        {/* Tiny play affordance so users know the card is tappable to hear
+            the chord. Whole card is the touch target; this is purely visual. */}
+        <View style={styles.miniPlayPill}>
+          <Text style={styles.miniPlayPillText}>▶ play</Text>
+        </View>
       </TouchableOpacity>
       {pillsVisible && (
         <View style={styles.miniInvRow}>
@@ -982,6 +987,17 @@ const styles = StyleSheet.create({
   // pills sit below this as a sibling so they don't trigger step-selection
   // when tapped.
   miniBoxTap:     { alignItems: 'center' },
+  miniPlayPill:   {
+                    marginTop: 6,
+                    paddingHorizontal: 7, paddingVertical: 2,
+                    borderRadius: RADIUS.full,
+                    backgroundColor: COLORS.surfaceHigh,
+                    alignSelf: 'center',
+                  },
+  miniPlayPillText: {
+                    fontSize: 8, color: COLORS.accent, fontWeight: '700',
+                    letterSpacing: 0.8,
+                  },
   miniNum:        { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 3 },
   miniNumActive:  { color: '#E8D44D' },
   miniName:       { fontSize: 8, color: COLORS.textFaint, marginTop: 1 },

@@ -114,7 +114,7 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
               </View>
               <Text style={styles.name}>{v.name}</Text>
               <View style={{ flex: 1 }} />
-              <Text style={styles.playGlyph}>{locked ? '🔒' : active ? '♪' : '▶'}</Text>
+              <Text style={styles.playGlyph}>{locked ? '🔒' : active ? '♪' : '▶ Play'}</Text>
             </View>
 
             <View style={styles.diagram}>

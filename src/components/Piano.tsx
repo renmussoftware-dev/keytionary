@@ -27,7 +27,15 @@ const WHITE_KEYS_PER_OCTAVE = 7;
 const BLACK_KEY_WIDTH_RATIO = 0.62;
 const BLACK_KEY_HEIGHT_RATIO = 0.62;
 
-export default function Piano() {
+interface PianoProps {
+  // MIDI of the note currently sounding (e.g. during scale playback). The
+  // matching key gets a halo pulse so the user can follow along visually.
+  // The leftmost visible C is MIDI 60 (C4 in the audio engine's labelling),
+  // so the per-key MIDI is `60 + octaveIdx * 12 + noteClass`.
+  playingMidi?: number | null;
+}
+
+export default function Piano({ playingMidi = null }: PianoProps = {}) {
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
 
@@ -172,14 +180,28 @@ export default function Piano() {
             : TOP_PAD + whiteKeyH - dotR - 10;
           const label = noteLabel(noteClass, root, labelMode, scaleKey, chordKey, mode);
           const fs = label.length > 2 ? 8 : 10;
+          // Audio engine convention: midi 60 = C4 (filename), which matches the
+          // Piano's leftmost label OCTAVE_BASE=4. So midi for (o, nc) is
+          // (OCTAVE_BASE + 1 + o) * 12 + nc — the +1 accounts for the audio
+          // engine's octave-naming convention (midi % 12 octave - 1).
+          const keyMidi = (OCTAVE_BASE + 1 + octaveIdx) * 12 + noteClass;
+          const isSounding = playingMidi !== null && keyMidi === playingMidi;
           return (
             <G key={`d-${octaveIdx}-${noteClass}`}>
               {col.isRoot && (
                 <Circle cx={cx} cy={cy} r={dotR + 8} fill="url(#rootGlow)" />
               )}
+              {/* Halo pulse on the note currently sounding during scale
+                  playback. Drawn before the main dot so it sits behind it. */}
+              {isSounding && (
+                <Circle
+                  cx={cx} cy={cy} r={dotR + 10}
+                  fill={col.fill} opacity={0.35}
+                />
+              )}
               <Circle
                 cx={cx} cy={cy} r={dotR}
-                fill={col.fill} stroke={col.stroke} strokeWidth={1.5}
+                fill={col.fill} stroke={col.stroke} strokeWidth={isSounding ? 2.5 : 1.5}
               />
               {label ? (
                 <SvgText
