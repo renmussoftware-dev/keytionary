@@ -171,13 +171,15 @@ export default function Paywall({ onClose, onSuccess }: Props) {
   }
 
   function getPackageLabel(pkg: PurchasesPackage) {
+    // Lifetime gets the BEST VALUE badge; everyone else is plain. The badge
+    // alone signals the recommended tier — the SELECTED state is what gets
+    // the dominant visual treatment in the render below, so users always
+    // see clearly which card they're about to purchase.
     switch (pkg.packageType) {
-      case PACKAGE_TYPE.MONTHLY:  return { title: 'Monthly', badge: null, highlight: false };
-      case PACKAGE_TYPE.LIFETIME: return { title: 'Lifetime', badge: 'BEST VALUE', highlight: true };
-      // Annual stays badge-less so Lifetime keeps the BEST VALUE crown; the
-      // free-trial pill on its card is enough visual pull on its own.
-      case PACKAGE_TYPE.ANNUAL:   return { title: 'Annual', badge: null, highlight: false };
-      default:                    return { title: pkg.identifier, badge: null, highlight: false };
+      case PACKAGE_TYPE.MONTHLY:  return { title: 'Monthly',  badge: null };
+      case PACKAGE_TYPE.ANNUAL:   return { title: 'Annual',   badge: null };
+      case PACKAGE_TYPE.LIFETIME: return { title: 'Lifetime', badge: 'BEST VALUE' };
+      default:                    return { title: pkg.identifier, badge: null };
     }
   }
 
@@ -251,7 +253,7 @@ export default function Paywall({ onClose, onSuccess }: Props) {
           <Text style={styles.noPackages}>No packages available. Check your RevenueCat configuration.</Text>
         ) : (
           sorted.map((pkg, i) => {
-            const { title, badge, highlight } = getPackageLabel(pkg);
+            const { title, badge } = getPackageLabel(pkg);
             const features = getFeatures(pkg);
             const selected = selectedIdx === i;
             const trial = getTrialInfo(pkg);
@@ -259,7 +261,7 @@ export default function Paywall({ onClose, onSuccess }: Props) {
             return (
               <TouchableOpacity
                 key={pkg.identifier}
-                style={[styles.card, highlight && styles.cardHighlight, selected && styles.cardSelected]}
+                style={[styles.card, selected && styles.cardSelected]}
                 onPress={() => setSelectedIdx(i)}
                 activeOpacity={0.8}
               >
@@ -269,9 +271,9 @@ export default function Paywall({ onClose, onSuccess }: Props) {
                   </View>
                 )}
                 <View style={styles.cardTop}>
-                  <Text style={[styles.cardTitle, highlight && styles.cardTitleHighlight]}>{title}</Text>
+                  <Text style={styles.cardTitle}>{title}</Text>
                   <View style={styles.priceWrap}>
-                    <Text style={[styles.price, highlight && styles.priceHighlight]}>
+                    <Text style={styles.price}>
                       {pkg.product.priceString}
                     </Text>
                     <Text style={styles.pricePer}>
@@ -291,12 +293,14 @@ export default function Paywall({ onClose, onSuccess }: Props) {
                 <View style={styles.divider} />
                 {features.map((f, fi) => (
                   <View key={fi} style={styles.featureRow}>
-                    <Text style={[styles.check, highlight && styles.checkHighlight]}>✓</Text>
+                    <Text style={styles.check}>✓</Text>
                     <Text style={styles.featureText}>{f}</Text>
                   </View>
                 ))}
                 {selected && (
-                  <View style={styles.selectedDot} />
+                  <View style={styles.selectedCheck}>
+                    <Text style={styles.selectedCheckText}>✓</Text>
+                  </View>
                 )}
               </TouchableOpacity>
             );
@@ -381,18 +385,23 @@ const styles = StyleSheet.create({
   noPackages:       { color: COLORS.textMuted, textAlign: 'center', padding: SPACE.xl, lineHeight: 22 },
 
   card:             { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, borderWidth: 1.5, borderColor: COLORS.border, padding: SPACE.lg, marginBottom: SPACE.md, position: 'relative' },
-  cardHighlight:    { borderColor: COLORS.accent, backgroundColor: '#18160a' },
-  cardSelected:     { borderWidth: 2 },
+  // Selected card is unmistakable — thick accent border + accent-tinted bg.
+  // This intentionally overrides any other emphasis (incl. the BEST VALUE
+  // badge above the card) so the user always knows which tier they're
+  // about to purchase.
+  cardSelected:     {
+                      borderColor: COLORS.accent,
+                      borderWidth: 2.5,
+                      backgroundColor: COLORS.accentSoft,
+                    },
 
   badge:            { position: 'absolute', top: -14, alignSelf: 'center', backgroundColor: COLORS.accent, paddingHorizontal: 12, paddingVertical: 3, borderRadius: 100 },
   badgeText:        { fontSize: 10, fontWeight: '800', color: '#1a1400', letterSpacing: 1 },
 
   cardTop:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACE.md },
   cardTitle:        { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  cardTitleHighlight: { color: COLORS.accent },
   priceWrap:        { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
   price:            { fontSize: 24, fontWeight: '800', color: COLORS.text },
-  priceHighlight:   { color: COLORS.accent },
   pricePer:         { fontSize: 12, color: COLORS.textMuted },
 
   trialPill:        {
@@ -410,10 +419,19 @@ const styles = StyleSheet.create({
 
   featureRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   check:            { color: COLORS.textMuted, fontWeight: '700', fontSize: 13 },
-  checkHighlight:   { color: COLORS.accent },
   featureText:      { fontSize: 13, color: COLORS.textMuted, flex: 1 },
 
-  selectedDot:      { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent },
+  // Filled accent circle with a check — the unambiguous "this is what
+  // you're buying" indicator. Replaces the prior 10px dot that was easy
+  // to miss when the BEST VALUE banner was pulling the eye elsewhere.
+  selectedCheck:    {
+                      position: 'absolute',
+                      top: 12, right: 12,
+                      width: 26, height: 26, borderRadius: 13,
+                      backgroundColor: COLORS.accent,
+                      alignItems: 'center', justifyContent: 'center',
+                    },
+  selectedCheckText:{ color: '#fff', fontWeight: '800', fontSize: 14 },
 
   freeNote:         { alignItems: 'center', paddingVertical: SPACE.md },
   freeNoteText:     { fontSize: 12, color: COLORS.textMuted },
