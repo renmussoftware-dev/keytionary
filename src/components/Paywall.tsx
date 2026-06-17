@@ -87,9 +87,9 @@ export default function Paywall({ onClose, onSuccess }: Props) {
   const { isLoading, isPro, packages, purchasePackage, restorePurchases } = useRevenueCat();
   const [purchasing, setPurchasing] = useState(false);
   // Default selection is computed from the actual packages once they load —
-  // see the effect below. Starts at 0 so the first card is highlighted while
-  // RevenueCat is fetching, then re-targets to the trial-bearing card (or a
-  // sensible middle/last card if no trial is offered).
+  // see the effect below. Starts at 0 while RevenueCat is fetching, then
+  // re-targets to Monthly so the user actively chooses to step up to Annual
+  // or Lifetime rather than being pre-nudged into a higher-commitment tier.
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   // Fire the Meta "viewed content" event the first time the paywall mounts.
@@ -112,15 +112,15 @@ export default function Paywall({ onClose, onSuccess }: Props) {
       return order.indexOf(a.packageType) - order.indexOf(b.packageType);
     });
 
-  // Smart default: when packages load (or change), pre-select the card with a
-  // free trial — that's the lowest-friction entry. If no trial is on offer,
-  // fall back to the second card (commonly the "best deal" position) or the
-  // only card available.
+  // Smart default: pre-select Monthly so the user decides on Lifetime (or
+  // Annual) themselves rather than landing on a pre-selected higher-tier
+  // commitment. Falls back to the first card if Monthly isn't in the
+  // offering for some reason.
   const sortedKey = sorted.map(p => p.identifier).join('|');
   useEffect(() => {
     if (sorted.length === 0) return;
-    const trialIdx = sorted.findIndex(p => getTrialInfo(p) !== null);
-    setSelectedIdx(trialIdx >= 0 ? trialIdx : Math.min(1, sorted.length - 1));
+    const monthlyIdx = sorted.findIndex(p => p.packageType === PACKAGE_TYPE.MONTHLY);
+    setSelectedIdx(monthlyIdx >= 0 ? monthlyIdx : 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedKey]);
 
