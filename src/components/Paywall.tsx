@@ -271,7 +271,15 @@ export default function Paywall({ onClose, onSuccess }: Props) {
                   </View>
                 )}
                 <View style={styles.cardTop}>
-                  <Text style={styles.cardTitle}>{title}</Text>
+                  <View style={styles.titleLeft}>
+                    {/* Radio indicator: empty ring when unselected, filled
+                        inner dot when selected. Sits before the title so it
+                        doesn't overlap the price on the right side. */}
+                    <View style={[styles.radio, selected && styles.radioSelected]}>
+                      {selected && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={styles.cardTitle}>{title}</Text>
+                  </View>
                   <View style={styles.priceWrap}>
                     <Text style={styles.price}>
                       {pkg.product.priceString}
@@ -297,11 +305,6 @@ export default function Paywall({ onClose, onSuccess }: Props) {
                     <Text style={styles.featureText}>{f}</Text>
                   </View>
                 ))}
-                {selected && (
-                  <View style={styles.selectedCheck}>
-                    <Text style={styles.selectedCheckText}>✓</Text>
-                  </View>
-                )}
               </TouchableOpacity>
             );
           })
@@ -399,6 +402,21 @@ const styles = StyleSheet.create({
   badgeText:        { fontSize: 10, fontWeight: '800', color: '#1a1400', letterSpacing: 1 },
 
   cardTop:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACE.md },
+  // Left side of the cardTop row: the selection radio + the tier title.
+  // Grouping them together keeps the radio adjacent to the title even as
+  // the price (right side) flexes to fit varying string widths.
+  titleLeft:        { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  radio:            {
+                      width: 20, height: 20, borderRadius: 10,
+                      borderWidth: 2, borderColor: COLORS.borderLight,
+                      alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: 'transparent',
+                    },
+  radioSelected:    { borderColor: COLORS.accent },
+  radioInner:       {
+                      width: 10, height: 10, borderRadius: 5,
+                      backgroundColor: COLORS.accent,
+                    },
   cardTitle:        { fontSize: 18, fontWeight: '700', color: COLORS.text },
   priceWrap:        { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
   price:            { fontSize: 24, fontWeight: '800', color: COLORS.text },
@@ -421,17 +439,6 @@ const styles = StyleSheet.create({
   check:            { color: COLORS.textMuted, fontWeight: '700', fontSize: 13 },
   featureText:      { fontSize: 13, color: COLORS.textMuted, flex: 1 },
 
-  // Filled accent circle with a check — the unambiguous "this is what
-  // you're buying" indicator. Replaces the prior 10px dot that was easy
-  // to miss when the BEST VALUE banner was pulling the eye elsewhere.
-  selectedCheck:    {
-                      position: 'absolute',
-                      top: 12, right: 12,
-                      width: 26, height: 26, borderRadius: 13,
-                      backgroundColor: COLORS.accent,
-                      alignItems: 'center', justifyContent: 'center',
-                    },
-  selectedCheckText:{ color: '#fff', fontWeight: '800', fontSize: 14 },
 
   freeNote:         { alignItems: 'center', paddingVertical: SPACE.md },
   freeNoteText:     { fontSize: 12, color: COLORS.textMuted },
