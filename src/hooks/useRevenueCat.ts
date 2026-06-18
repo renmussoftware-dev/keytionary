@@ -3,6 +3,7 @@ import Purchases, { LOG_LEVEL, PurchasesPackage, CustomerInfo } from 'react-nati
 import { Platform } from 'react-native';
 import { useStore } from '../store/useStore';
 import { REVENUECAT, isRevenueCatConfigured } from '../constants/revenuecat';
+import { linkFacebookAnonymousIDToRevenueCat } from '../lib/analytics';
 
 export interface PurchaseState {
   isLoading: boolean;
@@ -48,6 +49,14 @@ export function useRevenueCat() {
         } else if (Platform.OS === 'android') {
           Purchases.configure({ apiKey: REVENUECAT.androidApiKey });
         }
+
+        // Pass the Facebook SDK's anonymous ID through to RevenueCat so the
+        // server-side subscription events RC forwards to Meta carry the same
+        // install identifier as our SDK funnel events. Without this, RC's
+        // Meta integration silently drops events for ATT-denied users (no
+        // IDFA + no $fbAnonId = nothing to match on). Fire-and-forget so it
+        // doesn't delay paywall package loading.
+        linkFacebookAnonymousIDToRevenueCat();
 
         const customerInfo = await Purchases.getCustomerInfo();
         const isPro = customerInfo.entitlements.active[REVENUECAT.entitlementId] !== undefined;
