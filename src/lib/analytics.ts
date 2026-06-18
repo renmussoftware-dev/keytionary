@@ -25,22 +25,29 @@ import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { isFbSdkConfigured } from '../constants/facebook';
 
 let initialized = false;
+// Cached in-flight promise — any number of concurrent callers share the same
+// init pass instead of racing. Lets other modules (e.g. the FB-anon-ID linker
+// in useRevenueCat) safely `await initAnalytics()` to guarantee the SDK is
+// ready before they call AppEventsLogger.getAnonymousID() etc.
+let initPromise: Promise<void> | null = null;
 
 /**
  * Initialize the Facebook SDK and (on iOS) request App Tracking
- * Transparency permission. Safe to call multiple times — subsequent calls
- * are no-ops. Should fire after the user has experienced enough of the
- * app to give the ATT prompt context (e.g. after onboarding completes).
+ * Transparency permission. Safe to call multiple times — every call returns
+ * the same memoized promise that resolves once the SDK is fully ready.
+ * Should fire after the user has experienced enough of the app to give the
+ * ATT prompt context (e.g. after onboarding completes).
  */
-export async function initAnalytics(): Promise<void> {
-  if (initialized) return;
+export function initAnalytics(): Promise<void> {
+  if (!initPromise) initPromise = doInit();
+  return initPromise;
+}
+
+async function doInit(): Promise<void> {
   if (!isFbSdkConfigured()) {
-    if (__DEV__) {
-      console.warn('[Analytics] Facebook SDK not configured — skipping init.');
-    }
+    if (__DEV__) console.warn('[Analytics] Facebook SDK not configured — skipping init.');
     return;
   }
-
   try {
     // iOS: defer advertiser tracking until we have the user's ATT response.
     // Starting with tracking off prevents the SDK from collecting IDFA on
@@ -104,6 +111,15 @@ function safeLog(eventName: string, params?: Record<string, string | number>) {
  */
 export async function linkFacebookAnonymousIDToRevenueCat(): Promise<void> {
   try {
+    // Wait for Settings.initializeSDK() to resolve before fetching the
+    // anonymous ID — otherwise getAnonymousID() returns null and we
+    // silently no-op, leaving the RevenueCat → Meta integration unable to
+    // attribute server-side purchase events. The memoized initAnalytics
+    // promise means we just attach to whatever init pass is already in
+    // flight (or kick one off if nothing has started one yet).
+    await initAnalytics();
+    if (!initialized) return; // init failed or SDK not configured
+
     const anonId = await AppEventsLogger.getAnonymousID();
     if (anonId) {
       await Purchases.setFBAnonymousID(anonId);
