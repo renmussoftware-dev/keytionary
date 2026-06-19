@@ -42,7 +42,7 @@ export default function KeyboardScreen() {
   // on the keyboard as it sounds so the learner can follow visually. Stops
   // automatically when scale/root changes (otherwise notes from the old
   // scale would keep playing under the new one's highlights).
-  const { playMidi } = useAudioEngine();
+  const { playMidi, preloadMidi } = useAudioEngine();
   const [playingMidi, setPlayingMidi] = useState<number | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -97,6 +97,12 @@ export default function KeyboardScreen() {
   }
 
   useEffect(() => stopScalePlay, [root, scaleKey]);
+
+  // Pre-warm the scale's notes so the first Play press has every sample
+  // ready and the scale runs without cold-load hiccups.
+  useEffect(() => {
+    if (scalePlaySequence.length) preloadMidi(scalePlaySequence);
+  }, [scalePlaySequence, preloadMidi]);
 
   const controlsContent = (
     <>

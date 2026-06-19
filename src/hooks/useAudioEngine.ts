@@ -283,5 +283,5 @@ export function useAudioEngine() {
     step();
   }, [playChord, preloadMidi, stopProgression]);
 
-  return { playMidi, playChord, playProgression, stopProgression };
+  return { playMidi, playChord, playProgression, stopProgression, preloadMidi };
 }

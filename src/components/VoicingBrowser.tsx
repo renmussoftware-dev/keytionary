@@ -23,11 +23,29 @@ interface Props {
 // real-world voicings of the selected chord; tap any card to hear it.
 export default function VoicingBrowser({ root, chordKey }: Props) {
   const { width: screenW } = useWindowDimensions();
-  const { playChord } = useAudioEngine();
+  const { playChord, preloadMidi } = useAudioEngine();
   const { isPro, requirePro } = useProGate();
   const recordVoicingPlay = useStore(s => s.recordVoicingPlay);
   const voicings = useMemo(() => buildVoicings(root, chordKey), [root, chordKey]);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Pre-warm the sample pool with every note across every voicing for the
+  // current LH pattern. Without this, the first tap of an unwarmed chord
+  // staggers — some notes hit cached samples and fire instantly while
+  // others lazy-load and arrive late, audible as a stuttered chord attack.
+  // By the time the user taps, ensureLoaded is a cache hit for every note.
+  const allChordNotes = useMemo(() => {
+    const set = new Set<number>();
+    voicings.forEach(v => {
+      const { lh, rh } = realize(v, lhId, chordKey);
+      lh.forEach(n => set.add(n));
+      rh.forEach(n => set.add(n));
+    });
+    return [...set];
+  }, [voicings, lhId, chordKey]);
+  useEffect(() => {
+    if (allChordNotes.length) preloadMidi(allChordNotes);
+  }, [allChordNotes, preloadMidi]);
   // The left-hand foundation, applied to every voicing. Default to root+5th —
   // the most common comping left hand and an immediate "two-hand" payoff.
   const [lhId, setLhId] = useState<LeftHandId>('root5');

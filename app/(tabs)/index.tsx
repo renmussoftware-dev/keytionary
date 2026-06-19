@@ -36,7 +36,7 @@ export default function ChordsScreen() {
   const setPendingNav = useStore(s => s.setPendingNav);
   const addRecent = useStore(s => s.addRecent);
   const { isPro, requirePro } = useProGate();
-  const { playChord } = useAudioEngine();
+  const { playChord, preloadMidi } = useAudioEngine();
   const [category, setCategory] = useState('All');
   // Default to Major 7 (rather than Major triad) so the landing screen shows
   // the full voicing range — drop-2, drop-3, drop-2&4, shell, rootless,
@@ -54,6 +54,13 @@ export default function ChordsScreen() {
       setPendingNav(null);
     }
   }, [pendingNav, setPendingNav]);
+
+  // Pre-warm the sample pool for the currently-selected chord so that root
+  // pill taps, inversion pill taps, and "resolves to" taps all fire all
+  // notes simultaneously instead of staggering as cold samples lazy-load.
+  useEffect(() => {
+    preloadMidi(getChordMidi(root, selectedChord, 4, selectedInversion));
+  }, [root, selectedChord, selectedInversion, preloadMidi]);
 
   // Clamp inversion when chord changes — e.g. moving from a 7th chord (max
   // 3rd inv) back to a triad (max 2nd inv) needs to drop 3rd inv.
