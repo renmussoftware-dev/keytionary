@@ -80,15 +80,22 @@ const AUDIO_FILES: Record<string, any> = {
   'Gb6': require('../../assets/audio/Gb6.mp3'),
 };
 
-// Each note holds a small pool of Sound instances. Playing a note advances
-// a per-note round-robin index, so consecutive plays of the same note hit
-// different Sound objects — the previous attack rings out on its own
-// instance while the new attack hits a fresh one, avoiding the interrupt-
-// while-playing race that drops notes on iOS at progression speed.
+// Each note holds a small pool of Sound instances. Playing a note picks the
+// next instance via round-robin, silences any other instance(s) for that
+// note (see playMidi), then replayAsyncs the picked instance. Two reasons
+// the pool needs to exist:
 //
-// Pool size 2 covers a note appearing in two consecutive chords. A third
-// consecutive attack reuses instance 0, but by then (~3s at 80 BPM) its
-// sample is in the fade-out tail, so the re-attack is barely audible.
+//   1. Race avoidance — the original single-instance approach called
+//      replayAsync on a sound that might still be processing a previous
+//      stop, which dropped notes. With a pool, the new attack lands on a
+//      DIFFERENT instance from any stop, so they don't interact.
+//
+//   2. Clean rapid retriggers — silencing the other instance on every
+//      attack means rapid taps of the same chord re-articulate cleanly
+//      instead of stacking voices and turning into a glitchy soup.
+//
+// Size 2 is the minimum that satisfies both — odd taps land on instance 0,
+// even on instance 1, the inactive one always available as a fresh slot.
 const POOL_SIZE = 2;
 
 // Cap on how many note-pools stay resident. We DON'T preload the full
@@ -199,7 +206,18 @@ export function useAudioEngine() {
   }, [ensureLoaded]);
 
   // Play a single note. Lazy-loads the note's pool if needed, then picks the
-  // next instance round-robin and replayAsyncs it (atomic reset + play).
+  // next instance round-robin, silences any OTHER pool instance for the
+  // same note, and replayAsyncs the chosen instance.
+  //
+  // The other-instance stop is what makes rapid retriggers clean: without
+  // it, tapping the same chord quickly stacks 2 voices per note (one on
+  // each pool instance) and the playback turns into a glitchy soup. With
+  // it, only the newest attack sounds — the old voice is cut off the
+  // moment the new one fires.
+  //
+  // The stop never races the replay because they target DIFFERENT pool
+  // instances: replayAsync runs on `idx`, stops run on every other index.
+  // That's exactly why the pool exists — it lets us decouple the two ops.
   const playMidi = useCallback(async (midi: number) => {
     const name = midiToFilename(midi);
     const pool = await ensureLoaded(name);
@@ -207,6 +225,11 @@ export function useAudioEngine() {
     const idx = (poolIdxRef.current[name] ?? 0) % pool.length;
     poolIdxRef.current[name] = idx + 1;
     try {
+      // Silence prior attacks on other instances of this note. Fire-and-
+      // forget; the new attack starts immediately on a different instance.
+      for (let i = 0; i < pool.length; i++) {
+        if (i !== idx) pool[i].stopAsync().catch(() => {});
+      }
       await pool[idx].replayAsync();
     } catch {
       // ignore playback errors
@@ -214,10 +237,11 @@ export function useAudioEngine() {
   }, [ensureLoaded]);
 
   // Play a chord as a block — all notes attacked simultaneously, the way a
-  // pianist plays a chord in one hand stroke. We don't pre-stop the previous
-  // chord's notes — every stopAsync variant dropped freshly-attacked notes
-  // on iOS. replayAsync is atomic; old notes ring out on their fade-out
-  // tail (3.5s samples, 1s fade) and polyphony stays naturally bounded.
+  // pianist plays a chord in one hand stroke. Each playMidi independently
+  // silences its own prior voice (see above), so rapid chord retriggers
+  // produce clean re-articulation instead of stacked layers. Notes from a
+  // PREVIOUS chord that aren't in this one keep ringing on their pool
+  // instance — natural sustain-pedal-style decay.
   const playChord = useCallback(async (notes: number[]) => {
     await Promise.all(notes.map(midi => playMidi(midi)));
   }, [playMidi]);
