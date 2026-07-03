@@ -21,6 +21,21 @@ export type SavedItemInput = DistributiveOmit<SavedItem, 'addedAt'>;
 
 const RECENTS_MAX = 20;
 
+// ── Streak helpers ──────────────────────────────────────────────────────────
+// Date keys are local-time YYYY-MM-DD strings so day boundaries match the
+// user's wall clock (a New Yorker and a Tokyoite both get credit at their
+// own midnight, not UTC's). Compare strings == strings — no timezone math
+// once you're in the YYYY-MM-DD format.
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function todayKey(): string { return dateKey(new Date()); }
+function yesterdayKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return dateKey(d);
+}
+
 // Proactive Pro-prompt triggers — see recordVoicingPlay / recordFavoriteAdded.
 // Catches users at peak intent (just heard a beautiful voicing, just committed
 // to a favorite) instead of only at peak frustration (tapped a locked thing).
@@ -58,6 +73,16 @@ interface AppState {
   positiveActionCount: number;
   lastPromptedAt: number | null;
   recordPositiveAction: () => void;
+
+  // ── Streak state ──────────────────────────────────────────────────────────
+  // Counts consecutive days of app activity. lastActivityDate is the YYYY-MM-DD
+  // of the last day we credited; if today == that, no-op; if today ==
+  // yesterday+1, carry the streak forward; else reset to 1. Driven by
+  // recordActivity(), called from app/_layout.tsx on app launch.
+  lastActivityDate: string | null;
+  currentStreak: number;
+  longestStreak: number;
+  recordActivity: () => void;
 
   // ── Proactive Pro-prompt state ─────────────────────────────────────────────
   sessionVoicingPlays: number;        // resets on cold start (not persisted)
@@ -99,6 +124,10 @@ export const useStore = create<AppState>()(
       installedAt: 0,
       positiveActionCount: 0,
       lastPromptedAt: null,
+
+      lastActivityDate: null,
+      currentStreak: 0,
+      longestStreak: 0,
 
       sessionVoicingPlays: 0,
       sessionPromptFired: false,
@@ -150,6 +179,24 @@ export const useStore = create<AppState>()(
       },
 
       dismissProPrompt: () => set({ proPrompt: null }),
+
+      // Called on every app launch (after onboarding). No-op if already
+      // counted today; otherwise carries the streak forward when yesterday
+      // was also active, or resets to 1 when the chain was broken.
+      recordActivity: () => {
+        const today = todayKey();
+        const state = get();
+        if (state.lastActivityDate === today) return;
+        const newStreak = state.lastActivityDate === yesterdayKey()
+          ? state.currentStreak + 1
+          : 1;
+        const newLongest = Math.max(state.longestStreak, newStreak);
+        set({
+          lastActivityDate: today,
+          currentStreak: newStreak,
+          longestStreak: newLongest,
+        });
+      },
 
       recordPositiveAction: () => {
         const now = Date.now();
@@ -221,6 +268,9 @@ export const useStore = create<AppState>()(
         positiveActionCount: s.positiveActionCount,
         lastPromptedAt: s.lastPromptedAt,
         firstFavoritePromptShown: s.firstFavoritePromptShown,
+        lastActivityDate: s.lastActivityDate,
+        currentStreak: s.currentStreak,
+        longestStreak: s.longestStreak,
       }),
     },
   ),

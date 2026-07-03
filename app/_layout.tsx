@@ -15,11 +15,13 @@ import {
 import Onboarding from '../src/components/Onboarding';
 import ProPromptSheet from '../src/components/ProPromptSheet';
 import { initAnalytics, logOnboardingComplete } from '../src/lib/analytics';
+import { useStore } from '../src/store/useStore';
 
 const ONBOARDING_KEY = 'keytionary_onboarded_v1';
 
 export default function RootLayout() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const recordActivity = useStore(s => s.recordActivity);
   const [fontsLoaded] = useFonts({
     // Map all four weights to a single family alias matching FONT_FAMILY.mono
     // in theme.ts. RN picks the right weight via the `fontWeight` style.
@@ -61,6 +63,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (showOnboarding === false) initAnalytics();
   }, [showOnboarding]);
+
+  // Credit the streak once per calendar day. recordActivity is a no-op if
+  // already counted today, so this is safe to fire on every launch (and on
+  // re-runs of this effect during onboarding transitions).
+  useEffect(() => {
+    if (showOnboarding === false) recordActivity();
+  }, [showOnboarding, recordActivity]);
 
   // Wait until we know whether to show onboarding AND fonts have loaded
   if (showOnboarding === null || !fontsLoaded) return null;

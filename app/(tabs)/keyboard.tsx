@@ -5,6 +5,7 @@ import Piano from '../../src/components/Piano';
 import TopBar from '../../src/components/TopBar';
 import InfoPanel from '../../src/components/InfoPanel';
 import PillSelector from '../../src/components/PillSelector';
+import DailyPickCard from '../../src/components/DailyPickCard';
 import { COLORS, SPACE, RADIUS, FONT_FAMILY } from '../../src/constants/theme';
 import { SCALES, CHORDS } from '../../src/constants/music';
 import { useStore } from '../../src/store/useStore';
@@ -106,6 +107,7 @@ export default function KeyboardScreen() {
 
   const controlsContent = (
     <>
+      <DailyPickCard />
       {mode === 'scales' && (
         <View style={styles.section}>
           <View style={styles.scaleHeaderRow}>
