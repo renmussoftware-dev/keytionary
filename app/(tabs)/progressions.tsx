@@ -17,6 +17,7 @@ import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isProgressionFree } from '../../src/constants/subscription';
 import { getChordMidi, maxInversion, getInversionBass, chordShortName } from '../../src/utils/theory';
+import { voiceLeadProgression } from '../../src/utils/voiceLeading';
 import HeartButton from '../../src/components/HeartButton';
 import SavedSheet from '../../src/components/SavedSheet';
 
@@ -32,17 +33,18 @@ const DIATONIC_MAJOR = [
   { degree: 11, chordType: 'Diminished', numeral: 'vii°' },
 ];
 
-function ProgPiano({ chordRoot, chordKey, inversion, animVal }: {
+function ProgPiano({ chordRoot, chordKey, inversion, animVal, midi }: {
   chordRoot: number; chordKey: string; inversion: number; animVal: Animated.Value;
+  midi?: number[];
 }) {
   return (
     <Animated.View style={{ opacity: animVal, alignItems: 'center' }}>
-      <PianoChordBox root={chordRoot} chordKey={chordKey} inversion={inversion} />
+      <PianoChordBox root={chordRoot} chordKey={chordKey} inversion={inversion} midi={midi} />
     </Animated.View>
   );
 }
 
-function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickInversion, invMax }: {
+function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickInversion, invMax, midi }: {
   root: number;
   chordKey: string;
   inversion: number;
@@ -55,6 +57,10 @@ function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickIn
   // custom mode — named/diatonic/examples display authored voicings.
   onPickInversion?: (n: number) => void;
   invMax?: number;
+  // Explicit MIDI override for voice-led progressions (the picked voicing
+  // doesn't cleanly map to a single inversion). When present, drives the
+  // chord shape display.
+  midi?: number[];
 }) {
   const max = invMax ?? 0;
   const pillsVisible = !!onPickInversion && max > 0;
@@ -70,7 +76,7 @@ function MiniBox({ root, chordKey, inversion, numeral, active, onPress, onPickIn
     <View style={[styles.miniBox, active && styles.miniBoxActive]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.miniBoxTap}>
         <Text style={[styles.miniNum, active && styles.miniNumActive]}>{numeral}</Text>
-        <PianoChordBox root={root} chordKey={chordKey} inversion={inversion} compact />
+        <PianoChordBox root={root} chordKey={chordKey} inversion={inversion} midi={midi} compact />
         {/* Tiny play affordance so users know the card is tappable to hear
             the chord. Whole card is the touch target; this is purely visual. */}
         <View style={styles.miniPlayPill}>
@@ -231,7 +237,20 @@ export default function ProgressionsScreen() {
   const currentNumeral = activeProg.numerals[activeIdx] ?? '';
   const currentInversion = stepInversions[activeIdx] ?? 0;
 
+  // Voice-led toggle. When ON, the algorithm picks each chord's voicing to
+  // minimise motion from the previous chord — the hero playback feature.
+  // Off by default so existing UX (root-position or user-authored inversions)
+  // is preserved for anyone who hasn't opted in.
+  const [voiceLed, setVoiceLed] = useState(false);
+  const voiceLedMidi = useMemo(() => {
+    if (!voiceLed) return null;
+    return voiceLeadProgression(
+      progRoots.map((r, i) => ({ root: r, chordType: activeProg.chordTypes[i] ?? 'Major' })),
+    );
+  }, [voiceLed, progRoots, activeProg.chordTypes]);
+
   function getProgressionMidi(): number[][] {
+    if (voiceLedMidi) return voiceLedMidi;
     return progRoots.map((chordRoot, i) => {
       const chordType = activeProg.chordTypes[i] ?? 'Major';
       const inv = stepInversions[i] ?? 0;
@@ -240,11 +259,12 @@ export default function ProgressionsScreen() {
   }
 
   // Stable string key for the current chord sequence — restart playback only
-  // when the sequence actually changes, not on every render. Inversions are
-  // part of the identity so toggling them mid-progression updates playback.
+  // when the sequence actually changes, not on every render. Inversions AND
+  // the voice-led toggle are part of the identity so flipping them mid-play
+  // updates the playback.
   const sequenceKey = progRoots
     .map((r, i) => `${r}:${activeProg.chordTypes[i] ?? 'Major'}:${stepInversions[i] ?? 0}`)
-    .join('|');
+    .join('|') + `|vl:${voiceLed ? '1' : '0'}`;
 
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -298,7 +318,12 @@ export default function ProgressionsScreen() {
     // Progression audio is Pro — let free users navigate the carousel visually
     // but only Pro users hear the chord. The Play button itself routes to the
     // paywall, so the upgrade pressure stays focused there.
-    if (isPro) playChord(getChordMidi(chordRoot, chordType, 4, inv));
+    if (isPro) {
+      const midi = voiceLedMidi
+        ? voiceLedMidi[i]
+        : getChordMidi(chordRoot, chordType, 4, inv);
+      playChord(midi);
+    }
   }
 
   // Set the current step's inversion. Only meaningful when subMode === 'custom'
@@ -489,7 +514,29 @@ export default function ProgressionsScreen() {
                 </View>
 
                 <View style={styles.fbWrap}>
-                  <ProgPiano chordRoot={currentRoot} chordKey={currentType} inversion={currentInversion} animVal={fadeAnim} />
+                  <ProgPiano
+                    chordRoot={currentRoot}
+                    chordKey={currentType}
+                    inversion={currentInversion}
+                    animVal={fadeAnim}
+                    midi={voiceLedMidi?.[activeIdx]}
+                  />
+                </View>
+
+                {/* Voice-led toggle. Sits right above the play controls
+                    because it changes how the progression sounds — grouped
+                    with the other playback settings. Free for now; if you
+                    want to Pro-gate it later, wrap the setter in requirePro. */}
+                <View style={styles.voiceLedRow}>
+                  <TouchableOpacity
+                    onPress={() => setVoiceLed(v => !v)}
+                    style={[styles.voiceLedPill, voiceLed && styles.voiceLedPillOn]}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.voiceLedText, voiceLed && styles.voiceLedTextOn]}>
+                      ⚡ Voice-led {voiceLed ? 'ON' : 'OFF'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.ctrlRow}>
@@ -523,6 +570,7 @@ export default function ProgressionsScreen() {
                   {progRoots.map((rootI, i) => (
                     <MiniBox key={i} root={rootI} chordKey={activeProg.chordTypes[i]}
                       inversion={stepInversions[i] ?? 0}
+                      midi={voiceLedMidi?.[i]}
                       // Always show chord shorthand (Cmaj7, Am, etc.) on cards
                       // — the use case is "look ahead and know what to play
                       // next without tapping". Roman numerals for named
@@ -530,7 +578,13 @@ export default function ProgressionsScreen() {
                       // in the drawer list.
                       numeral={chordShortName(rootI, activeProg.chordTypes[i] ?? 'Major')}
                       active={i === activeIdx} onPress={() => goTo(i)}
-                      onPickInversion={subMode === 'custom' ? (n) => pickInversionForStep(i, n) : undefined}
+                      // Manual inversion controls hidden while voice-led is
+                      // on — the algorithm owns per-step voicing then.
+                      onPickInversion={
+                        subMode === 'custom' && !voiceLed
+                          ? (n) => pickInversionForStep(i, n)
+                          : undefined
+                      }
                       invMax={Math.min(maxInversion(activeProg.chordTypes[i] ?? 'Major'), 3)}
                     />
                   ))}
@@ -946,6 +1000,29 @@ const styles = StyleSheet.create({
                     paddingVertical: SPACE.sm, marginBottom: SPACE.md,
                     alignItems: 'center',
                   },
+  voiceLedRow:    {
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    marginBottom: SPACE.sm,
+                  },
+  voiceLedPill:   {
+                    paddingHorizontal: 14, paddingVertical: 6,
+                    borderRadius: RADIUS.full,
+                    backgroundColor: COLORS.surface,
+                    borderWidth: 1, borderColor: COLORS.border,
+                  },
+  voiceLedPillOn: {
+                    backgroundColor: COLORS.accentSoft,
+                    borderColor: COLORS.accent,
+                  },
+  voiceLedText:   {
+                    fontSize: 11, fontWeight: '700',
+                    color: COLORS.textMuted,
+                    letterSpacing: 0.5,
+                    fontFamily: FONT_FAMILY.mono,
+                  },
+  voiceLedTextOn: { color: COLORS.text },
+
   ctrlRow:        {
                     flexDirection: 'row', alignItems: 'center',
                     justifyContent: 'center', gap: 12,

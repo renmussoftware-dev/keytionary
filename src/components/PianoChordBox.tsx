@@ -12,6 +12,11 @@ interface Props {
   // Inversion index — 0 = root position, 1 = 1st inv, etc. Clamped internally
   // by getChordMidi to the chord's valid range.
   inversion?: number;
+  // Explicit MIDI notes to render — overrides the (root, chordKey, inversion)
+  // derivation. Used by voice-led progressions where the picked voicing
+  // doesn't cleanly map to a single inversion + baseOctave pair. Colour is
+  // still resolved by pitch-class role against the underlying chord.
+  midi?: number[];
 }
 
 // Fallback bottom-left MIDI when there's no chord-driven hint. The actual
@@ -28,7 +33,7 @@ const WHITE_KEYS_PER_OCTAVE = 7;
 const BLACK_KEY_WIDTH_RATIO = 0.62;
 const BLACK_KEY_HEIGHT_RATIO = 0.62;
 
-export default function PianoChordBox({ root, chordKey, compact = false, inversion = 0 }: Props) {
+export default function PianoChordBox({ root, chordKey, compact = false, inversion = 0, midi }: Props) {
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
 
@@ -56,10 +61,13 @@ export default function PianoChordBox({ root, chordKey, compact = false, inversi
     );
   }
 
-  // Highlight the specific MIDI notes of the inversion's voicing — not every
-  // octave of the chord's note classes. This is what makes an inversion
-  // actually *look* different on the keyboard.
-  const chordMidiList = getChordMidi(root, chordKey, 4, inversion);
+  // Explicit MIDI (voice-led progressions) overrides the inversion-derived
+  // list. Otherwise highlight the specific MIDI notes of the inversion's
+  // voicing — not every octave of the chord's note classes. This is what
+  // makes an inversion actually *look* different on the keyboard.
+  const chordMidiList = midi && midi.length > 0
+    ? [...midi].sort((a, b) => a - b)
+    : getChordMidi(root, chordKey, 4, inversion);
   const chordMidiSet = new Set(chordMidiList);
 
   // Pick a visible base MIDI so every chord note fits in the diagram. Prefer
