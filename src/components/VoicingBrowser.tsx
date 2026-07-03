@@ -28,6 +28,9 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
   const recordVoicingPlay = useStore(s => s.recordVoicingPlay);
   const voicings = useMemo(() => buildVoicings(root, chordKey), [root, chordKey]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // The left-hand foundation, applied to every voicing. Default to root+5th —
+  // the most common comping left hand and an immediate "two-hand" payoff.
+  const [lhId, setLhId] = useState<LeftHandId>('root5');
 
   // Pre-warm the sample pool with every note across every voicing for the
   // current LH pattern. Without this, the first tap of an unwarmed chord
@@ -46,9 +49,6 @@ export default function VoicingBrowser({ root, chordKey }: Props) {
   useEffect(() => {
     if (allChordNotes.length) preloadMidi(allChordNotes);
   }, [allChordNotes, preloadMidi]);
-  // The left-hand foundation, applied to every voicing. Default to root+5th —
-  // the most common comping left hand and an immediate "two-hand" payoff.
-  const [lhId, setLhId] = useState<LeftHandId>('root5');
 
   // Reset highlight when the chord/root changes so a stale id doesn't linger.
   useEffect(() => { setActiveId(null); }, [root, chordKey]);

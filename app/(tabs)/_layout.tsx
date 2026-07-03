@@ -28,20 +28,22 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* Chords is the hero — file lives at app/(tabs)/index.tsx so it owns
-          the root route '/' and is the first tab the user sees on launch. */}
+      {/* Keyboard owns the root route '/' — it's the file at
+          app/(tabs)/index.tsx. It's the landing tab because the daily
+          chord/scale pick and streak both live on this screen, and daily
+          engagement content deserves the first slot. */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Chords',
-          tabBarIcon: ({ color }) => <ChordIcon color={color} />,
+          title: 'Keyboard',
+          tabBarIcon: ({ color }) => <KeyboardIcon color={color} />,
         }}
       />
       <Tabs.Screen
-        name="keyboard"
+        name="chords"
         options={{
-          title: 'Keyboard',
-          tabBarIcon: ({ color }) => <KeyboardIcon color={color} />,
+          title: 'Chords',
+          tabBarIcon: ({ color }) => <ChordIcon color={color} />,
         }}
       />
       <Tabs.Screen

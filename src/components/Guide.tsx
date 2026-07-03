@@ -33,7 +33,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Chord Library',
     intro: 'Browse every chord type with a piano diagram and pedagogical resolution suggestions.',
-    navTo: '/',
+    navTo: '/chords',
     navLabel: 'Open Chord Library',
     features: [
       { name: 'Chord diagrams',         desc: 'Two-octave piano view with chord notes color-coded by interval.', badge: 'mixed' },
