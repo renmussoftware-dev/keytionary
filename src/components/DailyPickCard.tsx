@@ -61,13 +61,16 @@ export default function DailyPickCard() {
       <View style={{ flex: 1 }}>
         <View style={styles.topRow}>
           <Text style={styles.eyebrow}>{eyebrow}</Text>
-          {/* Streak chip — only renders once the user's chain has started.
-              Lives on the daily pick card because that's the "showed up
-              today" surface, which is what the streak actually counts. */}
+          {/* Streak chip — proper pill so it reads clearly as part of the
+              card. Lives on the daily pick card because that's the "showed
+              up today" surface, which is what the streak actually counts.
+              Renders as soon as the chain has started (day 1 counts). */}
           {currentStreak > 0 && (
-            <Text style={styles.streakText}>
-              🔥 {currentStreak} day streak!
-            </Text>
+            <View style={styles.streakChip}>
+              <Text style={styles.streakText}>
+                🔥 {currentStreak} day{currentStreak === 1 ? '' : 's'}
+              </Text>
+            </View>
           )}
         </View>
         <Text style={styles.title} numberOfLines={1}>
@@ -107,11 +110,21 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     fontFamily: FONT_FAMILY.mono,
   },
+  // Distinct pill so the streak reads as a first-class element inside the
+  // card rather than getting lost as small text next to the eyebrow.
+  streakChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+    backgroundColor: 'rgba(232,212,77,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(232,212,77,0.35)',
+  },
   streakText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     color: '#E8D44D',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   title: {
     fontSize: 18,
