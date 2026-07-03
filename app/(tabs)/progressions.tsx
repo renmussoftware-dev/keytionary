@@ -239,15 +239,16 @@ export default function ProgressionsScreen() {
 
   // Voice-led toggle. When ON, the algorithm picks each chord's voicing to
   // minimise motion from the previous chord — the hero playback feature.
-  // Off by default so existing UX (root-position or user-authored inversions)
-  // is preserved for anyone who hasn't opted in.
+  // Pro-gated: non-Pro users tapping the pill open the paywall; the compute
+  // path also short-circuits on !isPro so a downgrade immediately reverts
+  // playback to the standard voicing without needing a manual toggle-off.
   const [voiceLed, setVoiceLed] = useState(false);
   const voiceLedMidi = useMemo(() => {
-    if (!voiceLed) return null;
+    if (!voiceLed || !isPro) return null;
     return voiceLeadProgression(
       progRoots.map((r, i) => ({ root: r, chordType: activeProg.chordTypes[i] ?? 'Major' })),
     );
-  }, [voiceLed, progRoots, activeProg.chordTypes]);
+  }, [voiceLed, isPro, progRoots, activeProg.chordTypes]);
 
   function getProgressionMidi(): number[][] {
     if (voiceLedMidi) return voiceLedMidi;
@@ -523,18 +524,24 @@ export default function ProgressionsScreen() {
                   />
                 </View>
 
-                {/* Voice-led toggle. Sits right above the play controls
-                    because it changes how the progression sounds — grouped
-                    with the other playback settings. Free for now; if you
-                    want to Pro-gate it later, wrap the setter in requirePro. */}
+                {/* Voice-led toggle — Pro-gated, matches the producer-tier
+                    positioning. Non-Pro users tapping opens the paywall with
+                    a voice_led-tagged lock-hit so we can see conversion pull
+                    from this specific surface in Ads Manager. */}
                 <View style={styles.voiceLedRow}>
                   <TouchableOpacity
-                    onPress={() => setVoiceLed(v => !v)}
-                    style={[styles.voiceLedPill, voiceLed && styles.voiceLedPillOn]}
+                    onPress={() => {
+                      if (!isPro) {
+                        requirePro(() => setVoiceLed(true), 'voice_led');
+                        return;
+                      }
+                      setVoiceLed(v => !v);
+                    }}
+                    style={[styles.voiceLedPill, voiceLed && isPro && styles.voiceLedPillOn]}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.voiceLedText, voiceLed && styles.voiceLedTextOn]}>
-                      ⚡ Voice-led {voiceLed ? 'ON' : 'OFF'}
+                    <Text style={[styles.voiceLedText, voiceLed && isPro && styles.voiceLedTextOn]}>
+                      {!isPro && '🔒 '}⚡ Voice-led {isPro && voiceLed ? 'ON' : 'OFF'}
                     </Text>
                   </TouchableOpacity>
                 </View>
