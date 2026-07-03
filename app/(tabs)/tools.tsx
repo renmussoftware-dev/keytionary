@@ -7,13 +7,15 @@ import { router } from 'expo-router';
 import { COLORS, FONT_FAMILY, RADIUS, SPACE } from '../../src/constants/theme';
 import Metronome from '../../src/components/Metronome';
 import Guide from '../../src/components/Guide';
+import ChordIdentifier from '../../src/components/ChordIdentifier';
 import { useProGate } from '../../src/hooks/useProGate';
 
-type ToolMode = 'guide' | 'metronome';
+type ToolMode = 'guide' | 'identifier' | 'metronome';
 
 const TOOLS: { mode: ToolMode; label: string; sub: string }[] = [
-  { mode: 'guide',     label: 'Guide',     sub: 'Features & what\u2019s free' },
-  { mode: 'metronome', label: 'Metronome', sub: 'BPM & time sig' },
+  { mode: 'guide',      label: 'Guide',      sub: 'Features & what\u2019s free' },
+  { mode: 'identifier', label: 'Identify',   sub: 'Notes \u2192 chord name' },
+  { mode: 'metronome',  label: 'Metronome',  sub: 'BPM & time sig' },
 ];
 
 function ProUpsell() {
@@ -40,9 +42,10 @@ export default function ToolsScreen() {
   const [mode, setMode] = useState<ToolMode>('guide');
 
   let body: React.ReactNode;
-  if (mode === 'guide')           body = <Guide />;
-  else if (!isPro)                body = <ProUpsell />;
-  else                            body = <Metronome />;
+  if (mode === 'guide')            body = <Guide />;
+  else if (mode === 'identifier')  body = <ChordIdentifier />;
+  else if (!isPro)                 body = <ProUpsell />;
+  else                             body = <Metronome />;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
