@@ -55,6 +55,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="identify"
+        options={{
+          title: 'Identify',
+          tabBarIcon: ({ color }) => <IdentifyIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="tools"
         options={{
           title: 'Tools',
@@ -103,6 +110,26 @@ function ProgressionsIcon({ color }: { color: string }) {
       {[8, 12, 10, 14].map((h, i) => (
         <View key={i} style={{ width: 4, height: h * 0.9, backgroundColor: color, borderRadius: 2 }} />
       ))}
+    </View>
+  );
+}
+
+function IdentifyIcon({ color }: { color: string }) {
+  // Magnifying glass — a ring for the lens and a short diagonal stroke for
+  // the handle. Consistent with the other tab icons' simple-shape aesthetic.
+  return (
+    <View style={{ width: 20, height: 18 }}>
+      <View style={{
+        position: 'absolute', top: 0, left: 2,
+        width: 13, height: 13, borderRadius: 6.5,
+        borderWidth: 1.5, borderColor: color,
+      }} />
+      <View style={{
+        position: 'absolute', bottom: 1, right: 2,
+        width: 6, height: 1.8, borderRadius: 1,
+        backgroundColor: color,
+        transform: [{ rotate: '45deg' }],
+      }} />
     </View>
   );
 }
