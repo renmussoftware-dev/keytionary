@@ -36,13 +36,18 @@ function yesterdayKey(): string {
   return dateKey(d);
 }
 
-// Proactive Pro-prompt triggers — see recordVoicingPlay / recordFavoriteAdded.
-// Catches users at peak intent (just heard a beautiful voicing, just committed
-// to a favorite) instead of only at peak frustration (tapped a locked thing).
-const VOICING_PROMPT_THRESHOLD = 6;
+// Proactive Pro-prompt triggers — see recordVoicingPlay / recordFavoriteAdded
+// / recordOnboardingComplete. Catches users at peak intent (heard a beautiful
+// voicing, committed to a favorite, just finished onboarding) instead of only
+// at peak frustration (tapped a locked thing).
+//
+// Threshold tuned from funnel analysis: 6 was leaving too many users below
+// the prompt firing point before they dropped the app entirely. 4 gets the
+// prompt in front of them earlier without feeling nagged.
+const VOICING_PROMPT_THRESHOLD = 4;
 
 export interface ProPromptSpec {
-  source: 'voicings' | 'favorite';
+  source: 'voicings' | 'favorite' | 'onboarding';
   title: string;
   subtitle: string;
 }
@@ -88,9 +93,11 @@ interface AppState {
   sessionVoicingPlays: number;        // resets on cold start (not persisted)
   sessionPromptFired: boolean;        // at most one Pro prompt per session
   firstFavoritePromptShown: boolean;  // persisted — favorite prompt fires once ever
+  onboardingPromptShown: boolean;     // persisted — onboarding prompt fires once ever
   proPrompt: ProPromptSpec | null;    // when set, ProPromptSheet renders
   recordVoicingPlay: () => void;
   recordFavoriteAdded: () => void;
+  recordOnboardingComplete: () => void;
   dismissProPrompt: () => void;
 
   pendingNav: SavedItem | null;
@@ -132,6 +139,7 @@ export const useStore = create<AppState>()(
       sessionVoicingPlays: 0,
       sessionPromptFired: false,
       firstFavoritePromptShown: false,
+      onboardingPromptShown: false,
       proPrompt: null,
 
       pendingNav: null,
@@ -174,6 +182,26 @@ export const useStore = create<AppState>()(
             title: 'Save it forever.',
             subtitle:
               'You just saved your first favorite. Go Pro to unlock the full library — every chord, every scale, every progression — to favorite anything.',
+          },
+        });
+      },
+
+      // Fires the Pro prompt once ever, the first time the user finishes
+      // onboarding. Addresses the funnel-reach leak — under the old flow
+      // most users never hit any Pro trigger before dropping. Persisted
+      // so it never fires again on this install. Guarded by
+      // sessionPromptFired so it can't pile onto another prompt.
+      recordOnboardingComplete: () => {
+        const s = get();
+        if (s.isPro || s.onboardingPromptShown || s.sessionPromptFired) return;
+        set({
+          onboardingPromptShown: true,
+          sessionPromptFired: true,
+          proPrompt: {
+            source: 'onboarding',
+            title: "You're in.",
+            subtitle:
+              'The free tier covers the basics. Pro unlocks the full library — every voicing, chord, scale, progression — plus voice-led playback and the Chord Identifier.',
           },
         });
       },
@@ -268,6 +296,7 @@ export const useStore = create<AppState>()(
         positiveActionCount: s.positiveActionCount,
         lastPromptedAt: s.lastPromptedAt,
         firstFavoritePromptShown: s.firstFavoritePromptShown,
+        onboardingPromptShown: s.onboardingPromptShown,
         lastActivityDate: s.lastActivityDate,
         currentStreak: s.currentStreak,
         longestStreak: s.longestStreak,

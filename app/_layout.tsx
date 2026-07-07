@@ -22,6 +22,7 @@ const ONBOARDING_KEY = 'keytionary_onboarded_v1';
 export default function RootLayout() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const recordActivity = useStore(s => s.recordActivity);
+  const recordOnboardingComplete = useStore(s => s.recordOnboardingComplete);
   const [fontsLoaded] = useFonts({
     // Map all four weights to a single family alias matching FONT_FAMILY.mono
     // in theme.ts. RN picks the right weight via the `fontWeight` style.
@@ -54,6 +55,12 @@ export default function RootLayout() {
     // resolving — fire the standard "complete registration" event so it
     // doesn't get dropped by being logged pre-init.
     initAnalytics().then(() => logOnboardingComplete());
+    // Fire the onboarding Pro prompt after a short delay so the user sees
+    // the app land (tabs render, daily card visible) before the prompt
+    // slides up — avoids "onboarding → paywall" feeling like bait and
+    // switch. The store action is a no-op if the user is already Pro or
+    // has seen this prompt before, so this is safe to call every time.
+    setTimeout(() => recordOnboardingComplete(), 800);
   }
 
   // Initialize the Meta SDK + iOS ATT prompt once onboarding is out of the
