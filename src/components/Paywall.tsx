@@ -88,8 +88,13 @@ export default function Paywall({ onClose, onSuccess }: Props) {
   const [purchasing, setPurchasing] = useState(false);
   // Default selection is computed from the actual packages once they load —
   // see the effect below. Starts at 0 while RevenueCat is fetching, then
-  // re-targets to Monthly so the user actively chooses to step up to Annual
-  // or Lifetime rather than being pre-nudged into a higher-commitment tier.
+  // re-targets to Lifetime. Rationale (from funnel analysis): checkout close
+  // rate on Keytionary was ~3x worse than Fretionary's, and the paywall
+  // recording showed the mismatch — Lifetime carries the BEST VALUE badge but
+  // Monthly was pre-selected. Pre-selecting Lifetime (a) aligns the
+  // visual signal with the actual selection, and (b) reduces last-second
+  // hesitation at Apple's purchase sheet since "$44.99 one-time" reads as
+  // a smaller commitment than "auto-renews at $7.99/month".
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   // Fire the Meta "viewed content" event the first time the paywall mounts.
@@ -112,15 +117,17 @@ export default function Paywall({ onClose, onSuccess }: Props) {
       return order.indexOf(a.packageType) - order.indexOf(b.packageType);
     });
 
-  // Smart default: pre-select Monthly so the user decides on Lifetime (or
-  // Annual) themselves rather than landing on a pre-selected higher-tier
-  // commitment. Falls back to the first card if Monthly isn't in the
-  // offering for some reason.
+  // Smart default: pre-select Lifetime (the "own it forever" tier and the
+  // one carrying the BEST VALUE badge). Falls back to Annual, then to the
+  // first card, if the offering doesn't include Lifetime.
   const sortedKey = sorted.map(p => p.identifier).join('|');
   useEffect(() => {
     if (sorted.length === 0) return;
-    const monthlyIdx = sorted.findIndex(p => p.packageType === PACKAGE_TYPE.MONTHLY);
-    setSelectedIdx(monthlyIdx >= 0 ? monthlyIdx : 0);
+    const lifetimeIdx = sorted.findIndex(p => p.packageType === PACKAGE_TYPE.LIFETIME);
+    if (lifetimeIdx >= 0) { setSelectedIdx(lifetimeIdx); return; }
+    const annualIdx = sorted.findIndex(p => p.packageType === PACKAGE_TYPE.ANNUAL);
+    if (annualIdx >= 0) { setSelectedIdx(annualIdx); return; }
+    setSelectedIdx(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedKey]);
 
