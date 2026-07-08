@@ -105,13 +105,16 @@ export default function Piano({ playingMidi = null }: PianoProps = {}) {
     }
   }
 
-  // Scroll so the middle octave is visible initially on phone.
+  // Scroll to the leftmost position on phone so the visible range starts at
+  // C4 (the leftmost labelled octave). Scale playback fires MIDI 60+ (C4 and
+  // up), so anchoring the view at C4 keeps the note pulse on-screen from the
+  // first note of every scale — users can actually follow the highlighting.
+  // Previously we centred the middle octave which put the C4–B4 range off
+  // screen to the left, hiding most of the scale's playback range.
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
     if (!isTablet && octaves >= 3) {
-      // Center the middle octave horizontally.
-      const targetX = WHITE_KEYS_PER_OCTAVE * whiteKeyW * Math.floor(octaves / 2) - whiteKeyW;
-      scrollRef.current?.scrollTo({ x: Math.max(0, targetX), animated: false });
+      scrollRef.current?.scrollTo({ x: 0, animated: false });
     }
   }, [isTablet, octaves, whiteKeyW]);
 
