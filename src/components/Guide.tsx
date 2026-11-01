@@ -54,6 +54,18 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Practice',
+    intro: 'Play-along exercises for your own piano or keyboard, plus your streak and progress.',
+    navTo: '/practice',
+    navLabel: 'Open Practice',
+    features: [
+      { name: "Today's session", desc: 'A fresh warm-up, technique and chord exercise every day, all in one key.', badge: 'mixed' },
+      { name: 'Exercise library', desc: 'Five-finger patterns, scales with fingerings, arpeggios, inversions, cadences and ii–V–I guide tones.', badge: 'mixed' },
+      { name: 'Tempo records', desc: 'Mark a run as clean to log your best tempo; the next run starts a little faster.', badge: 'free' },
+      { name: 'Progress', desc: 'Streak, minutes this week, and how much of the library you have played.', badge: 'free' },
+    ],
+  },
+  {
     title: 'Metronome',
     intro: 'Practice in time with a drift-corrected metronome on the Tools tab.',
     features: [

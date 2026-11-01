@@ -65,3 +65,18 @@ export function isVoicingFree(voicingId: string): boolean {
   return FREE_VOICINGS.has(voicingId);
 }
 
+
+// ── EXERCISES ────────────────────────────────────────────────────────────────
+// Free: the first exercise in each category, plus whichever exercise opens
+// today's guided session (that one is decided at the call site).
+// Pro:  the rest of the library and the full daily session.
+export const FREE_EXERCISES = new Set([
+  'warmup-five-finger',
+  'scale-updown',
+  'arp-triad',
+  'chord-inversions',
+]);
+
+export function isExerciseFree(exerciseId: string): boolean {
+  return FREE_EXERCISES.has(exerciseId);
+}

@@ -44,6 +44,7 @@ export default function KeyboardScreen() {
   // automatically when scale/root changes (otherwise notes from the old
   // scale would keep playing under the new one's highlights).
   const { playMidi, preloadMidi } = useAudioEngine();
+  const recordScaleExplored = useStore(s => s.recordScaleExplored);
   const [playingMidi, setPlayingMidi] = useState<number | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,6 +76,7 @@ export default function KeyboardScreen() {
     // Pro user downgrades while a locked scale is selected, refuse to play.
     if (!isPro && !isScaleFree(scaleKey)) { requirePro(() => {}); return; }
     stopScalePlay();
+    recordScaleExplored(scaleKey);
     let i = 0;
     const tick = () => {
       if (i >= scalePlaySequence.length) {

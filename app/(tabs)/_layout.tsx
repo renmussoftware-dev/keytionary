@@ -55,6 +55,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="practice"
+        options={{
+          title: 'Practice',
+          tabBarIcon: ({ color }) => <PracticeIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="identify"
         options={{
           title: 'Identify',
@@ -110,6 +117,27 @@ function ProgressionsIcon({ color }: { color: string }) {
       {[8, 12, 10, 14].map((h, i) => (
         <View key={i} style={{ width: 4, height: h * 0.9, backgroundColor: color, borderRadius: 2 }} />
       ))}
+    </View>
+  );
+}
+
+// Metronome silhouette: a tapering body with a pendulum arm, since the
+// Practice tab is built around playing along with the click.
+function PracticeIcon({ color }: { color: string }) {
+  return (
+    <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'flex-end' }}>
+      <View style={{
+        width: 0, height: 0,
+        borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 16,
+        borderLeftColor: 'transparent', borderRightColor: 'transparent',
+        borderBottomColor: color,
+      }} />
+      <View style={{
+        position: 'absolute', bottom: 2, left: 10,
+        width: 1.8, height: 15, borderRadius: 1, backgroundColor: COLORS.bgElevated,
+        transform: [{ rotate: '25deg' }],
+      }} />
+      <View style={{ width: 16, height: 2, marginTop: -1, borderRadius: 1, backgroundColor: color }} />
     </View>
   );
 }

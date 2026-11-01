@@ -35,6 +35,7 @@ export default function ChordsScreen() {
   const pendingNav = useStore(s => s.pendingNav);
   const setPendingNav = useStore(s => s.setPendingNav);
   const addRecent = useStore(s => s.addRecent);
+  const recordChordLearned = useStore(s => s.recordChordLearned);
   const { isPro, requirePro } = useProGate();
   const { playChord, preloadMidi } = useAudioEngine();
   const [category, setCategory] = useState('All');
@@ -132,6 +133,7 @@ export default function ChordsScreen() {
       addRecent({ kind: 'chord', root, chordKey: key, inversion: newInv });
       closeDrawer();
       playChord(getChordMidi(root, key, 4, newInv));
+      recordChordLearned(key);
     };
     if (!isChordFree(key)) { requirePro(apply); return; }
     apply();
@@ -147,6 +149,7 @@ export default function ChordsScreen() {
       setSelectedInversion(0);
       addRecent({ kind: 'chord', root: newRoot, chordKey: targetType, inversion: 0 });
       playChord(getChordMidi(newRoot, targetType));
+      recordChordLearned(targetType);
     };
     if (!isChordFree(targetType)) { requirePro(apply); return; }
     apply();
@@ -158,6 +161,7 @@ export default function ChordsScreen() {
   function pickInversion(n: number) {
     setSelectedInversion(n);
     playChord(getChordMidi(root, selectedChord, 4, n));
+    recordChordLearned(selectedChord);
   }
 
   const filteredChords = Object.entries(CHORDS).filter(([, ch]) =>
@@ -188,6 +192,7 @@ export default function ChordsScreen() {
                 setRoot(i);
                 addRecent({ kind: 'chord', root: i, chordKey: selectedChord, inversion: selectedInversion });
                 playChord(getChordMidi(i, selectedChord, 4, selectedInversion));
+                recordChordLearned(selectedChord);
               }}
               style={[styles.notePill, root === i && styles.notePillActive]} activeOpacity={0.7}>
               <Text style={[styles.noteText, root === i && styles.noteTextActive]}>{NOTE_DISPLAY[note] || note}</Text>

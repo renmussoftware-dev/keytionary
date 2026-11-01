@@ -32,13 +32,13 @@ const CHORD_KEYS = Object.keys(CHORDS);
  * daily rollover with the user's wall clock — a New Yorker and a Tokyoite
  * each get their own new pick at their own local midnight.
  */
-function localDayNumber(d: Date): number {
+export function localDayNumber(d: Date): number {
   const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   return Math.floor(localMidnight / (24 * 60 * 60 * 1000));
 }
 
 /** Safe non-negative modulo for any integer. */
-function mod(n: number, m: number): number {
+export function mod(n: number, m: number): number {
   return ((n % m) + m) % m;
 }
 

@@ -29,12 +29,28 @@ const RECENTS_MAX = 20;
 function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-function todayKey(): string { return dateKey(new Date()); }
+export function todayKey(): string { return dateKey(new Date()); }
 function yesterdayKey(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return dateKey(d);
 }
+
+// Per-exercise practice record. Exercises are self-reported (the app can't
+// hear the piano), so the number that tracks progress is the fastest tempo
+// the user has marked as clean, not a score.
+export interface ExerciseStat {
+  completions: number;
+  totalSec: number;
+  bestBpm: number | null;   // fastest tempo marked "felt clean"
+  nextBpm: number;          // tempo the player opens at next time
+}
+
+// How far the player nudges the tempo up after a clean run.
+export const CLEAN_BPM_STEP = 4;
+
+// Days of practice time kept for the Progress screen's week strip.
+const PRACTICE_LOG_DAYS = 60;
 
 // Proactive Pro-prompt triggers — see recordVoicingPlay / recordFavoriteAdded
 // / recordOnboardingComplete. Catches users at peak intent (heard a beautiful
@@ -89,6 +105,31 @@ interface AppState {
   longestStreak: number;
   recordActivity: () => void;
 
+  // ── Practice progress ─────────────────────────────────────────────────────
+  // Keys the user has actively engaged with (played the audio for, not just
+  // viewed). Powers the Progress view on the Practice tab. Idempotent
+  // recorders — adding a key that's already in the list is a no-op, so it's
+  // safe to call from every playback trigger.
+  scalesExplored: string[];
+  chordsLearned: string[];
+  progressionsPlayed: string[];
+  recordScaleExplored: (scaleKey: string) => void;
+  recordChordLearned: (chordKey: string) => void;
+  recordProgressionPlayed: (name: string) => void;
+
+  // ── Practice → Exercises ──────────────────────────────────────────────────
+  // exerciseStats is keyed by exercise id. exerciseSession tracks which of
+  // today's guided-session exercises are done; `date` is a local YYYY-MM-DD
+  // key and a stale date means nothing is done yet today. practiceLog is
+  // seconds of exercise time per local day.
+  exerciseStats: Record<string, ExerciseStat>;
+  exerciseSession: { date: string; done: string[] };
+  practiceLog: Record<string, number>;
+  recordExerciseDone: (
+    id: string,
+    result: { bpm: number; seconds: number; clean: boolean; inSession: boolean },
+  ) => void;
+
   // ── Proactive Pro-prompt state ─────────────────────────────────────────────
   sessionVoicingPlays: number;        // resets on cold start (not persisted)
   sessionPromptFired: boolean;        // at most one Pro prompt per session
@@ -135,6 +176,13 @@ export const useStore = create<AppState>()(
       lastActivityDate: null,
       currentStreak: 0,
       longestStreak: 0,
+
+      scalesExplored: [],
+      chordsLearned: [],
+      progressionsPlayed: [],
+      exerciseStats: {},
+      exerciseSession: { date: '', done: [] },
+      practiceLog: {},
 
       sessionVoicingPlays: 0,
       sessionPromptFired: false,
@@ -226,6 +274,48 @@ export const useStore = create<AppState>()(
         });
       },
 
+      recordScaleExplored: (scaleKey) => {
+        const list = get().scalesExplored;
+        if (list.includes(scaleKey)) return;
+        set({ scalesExplored: [...list, scaleKey] });
+      },
+      recordChordLearned: (chordKey) => {
+        const list = get().chordsLearned;
+        if (list.includes(chordKey)) return;
+        set({ chordsLearned: [...list, chordKey] });
+      },
+      recordProgressionPlayed: (name) => {
+        const list = get().progressionsPlayed;
+        if (list.includes(name)) return;
+        set({ progressionsPlayed: [...list, name] });
+      },
+
+      recordExerciseDone: (id, { bpm, seconds, clean, inSession }) => {
+        const state = get();
+        const prev = state.exerciseStats[id];
+        const stat: ExerciseStat = {
+          completions: (prev?.completions ?? 0) + 1,
+          totalSec: (prev?.totalSec ?? 0) + seconds,
+          bestBpm: clean ? Math.max(prev?.bestBpm ?? 0, bpm) : prev?.bestBpm ?? null,
+          nextBpm: clean ? bpm + CLEAN_BPM_STEP : bpm,
+        };
+        const today = todayKey();
+        const doneToday = state.exerciseSession.date === today ? state.exerciseSession.done : [];
+        // Keys sort chronologically, so the oldest days fall off the front.
+        const log = { ...state.practiceLog, [today]: (state.practiceLog[today] ?? 0) + seconds };
+        const days = Object.keys(log).sort();
+        for (const d of days.slice(0, Math.max(0, days.length - PRACTICE_LOG_DAYS))) delete log[d];
+        set({
+          exerciseStats: { ...state.exerciseStats, [id]: stat },
+          exerciseSession: inSession && !doneToday.includes(id)
+            ? { date: today, done: [...doneToday, id] }
+            : { date: today, done: doneToday },
+          practiceLog: log,
+        });
+        // Practicing counts as showing up today, same as opening the app.
+        get().recordActivity();
+      },
+
       recordPositiveAction: () => {
         const now = Date.now();
         const state = get();
@@ -300,6 +390,12 @@ export const useStore = create<AppState>()(
         lastActivityDate: s.lastActivityDate,
         currentStreak: s.currentStreak,
         longestStreak: s.longestStreak,
+        scalesExplored: s.scalesExplored,
+        chordsLearned: s.chordsLearned,
+        progressionsPlayed: s.progressionsPlayed,
+        exerciseStats: s.exerciseStats,
+        exerciseSession: s.exerciseSession,
+        practiceLog: s.practiceLog,
       }),
     },
   ),

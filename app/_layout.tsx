@@ -16,13 +16,21 @@ import Onboarding from '../src/components/Onboarding';
 import ProPromptSheet from '../src/components/ProPromptSheet';
 import { initAnalytics, logOnboardingComplete } from '../src/lib/analytics';
 import { useStore } from '../src/store/useStore';
+import { maybeRequestPushPermission, scheduleStreakReminder } from '../src/utils/notifications';
 
 const ONBOARDING_KEY = 'keytionary_onboarded_v1';
+
+// Positive actions (favorites, finished practice sessions) before we ask
+// for notification permission — early enough to protect a young streak,
+// late enough that the user has seen what the reminder would be for.
+const PUSH_ASK_MIN_ACTIONS = 3;
 
 export default function RootLayout() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const recordActivity = useStore(s => s.recordActivity);
   const recordOnboardingComplete = useStore(s => s.recordOnboardingComplete);
+  const currentStreak = useStore(s => s.currentStreak);
+  const positiveActionCount = useStore(s => s.positiveActionCount);
   const [fontsLoaded] = useFonts({
     // Map all four weights to a single family alias matching FONT_FAMILY.mono
     // in theme.ts. RN picks the right weight via the `fontWeight` style.
@@ -77,6 +85,25 @@ export default function RootLayout() {
   useEffect(() => {
     if (showOnboarding === false) recordActivity();
   }, [showOnboarding, recordActivity]);
+
+  // Push permission ask — gated on engagement. Single-shot via an
+  // AsyncStorage flag inside the util, so this can fire freely.
+  useEffect(() => {
+    if (showOnboarding !== false) return;
+    if (positiveActionCount < PUSH_ASK_MIN_ACTIONS) return;
+    maybeRequestPushPermission().then(granted => {
+      if (granted) scheduleStreakReminder(useStore.getState().currentStreak);
+    });
+  }, [showOnboarding, positiveActionCount]);
+
+  // Streak reminder — reschedule for tomorrow at 6pm whenever the streak
+  // count is known. The util cancels any stale reminder first and no-ops
+  // without permission.
+  useEffect(() => {
+    if (showOnboarding !== false) return;
+    if (currentStreak < 1) return;
+    scheduleStreakReminder(currentStreak);
+  }, [showOnboarding, currentStreak]);
 
   // Wait until we know whether to show onboarding AND fonts have loaded
   if (showOnboarding === null || !fontsLoaded) return null;
