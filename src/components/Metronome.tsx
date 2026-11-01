@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
 } from 'react-native';
-import { Audio } from 'expo-av';
-import { Sound } from 'expo-av/build/Audio';
 import { COLORS, FONT_FAMILY, RADIUS, SPACE } from '../constants/theme';
+import { useMetronomeClock, BPM_MIN, BPM_MAX } from '../hooks/useMetronomeClock';
 
 interface TimeSig { name: string; beats: number; }
 
@@ -17,109 +16,35 @@ const TIME_SIGS: TimeSig[] = [
   { name: '7/8', beats: 7 },
 ];
 
-const ACCENT_VOLUME = 1.0;
-const OFFBEAT_VOLUME = 0.55;
-const CLICK_SAMPLE = require('../../assets/audio/WoodBlHi ExtraPerc V1.wav');
-
-const BPM_MIN = 40;
-const BPM_MAX = 240;
 const TAP_WINDOW_MS = 2500;  // taps older than this expire
 
 export default function Metronome() {
-  const accentSoundRef = useRef<Sound | null>(null);
-  const offbeatSoundRef = useRef<Sound | null>(null);
-
-  // Load two Sound instances of the wood-block sample at different volumes —
-  // pre-loading avoids per-tick volume change latency.
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-      });
-      const [{ sound: accent }, { sound: offbeat }] = await Promise.all([
-        Audio.Sound.createAsync(CLICK_SAMPLE, { shouldPlay: false, volume: ACCENT_VOLUME }),
-        Audio.Sound.createAsync(CLICK_SAMPLE, { shouldPlay: false, volume: OFFBEAT_VOLUME }),
-      ]);
-      if (cancelled) {
-        accent.unloadAsync();
-        offbeat.unloadAsync();
-        return;
-      }
-      accentSoundRef.current = accent;
-      offbeatSoundRef.current = offbeat;
-    }
-    load();
-    return () => {
-      cancelled = true;
-      accentSoundRef.current?.unloadAsync();
-      offbeatSoundRef.current?.unloadAsync();
-      accentSoundRef.current = null;
-      offbeatSoundRef.current = null;
-    };
-  }, []);
-
-  function playClick(accent: boolean) {
-    const sound = accent ? accentSoundRef.current : offbeatSoundRef.current;
-    if (!sound) return;
-    // replayAsync is a single native call that restarts the sample from the
-    // beginning even if it's still ringing out — much more reliable at high
-    // BPMs than setPositionAsync(0) + playAsync().
-    sound.replayAsync().catch(() => {});
-  }
-
   const [bpm, setBpm] = useState(100);
   const [sigIdx, setSigIdx] = useState(2); // default 4/4
   const [running, setRunning] = useState(false);
   const [beatIdx, setBeatIdx] = useState(0);
 
   const sig = TIME_SIGS[sigIdx];
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const nextTickRef = useRef<number>(0);
-  const beatRef = useRef(0);
   const tapTimesRef = useRef<number[]>([]);
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
-  // Self-correcting tick scheduler: targets absolute tick times to avoid drift
+  // Light the current dot and fire the play-circle pulse. Called as each
+  // click sounds.
+  function showBeat(beat: number) {
+    setBeatIdx(beat);
+    Animated.sequence([
+      Animated.timing(pulseAnim, { toValue: 1, duration: 60, useNativeDriver: true }),
+      Animated.timing(pulseAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start();
+  }
+
+  // The click engine and its scheduler live in the shared clock, which the
+  // Practice exercise player also runs on.
+  useMetronomeClock({ bpm, beats: sig.beats, running, onBeat: showBeat });
+
   useEffect(() => {
-    if (!running) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = null;
-      return;
-    }
-
-    beatRef.current = 0;
-    setBeatIdx(0);
-    nextTickRef.current = Date.now();
-
-    function tick() {
-      const beat = beatRef.current;
-      const isAccent = beat === 0;
-      playClick(isAccent);
-      setBeatIdx(beat);
-
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 60, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
-      ]).start();
-
-      beatRef.current = (beat + 1) % sig.beats;
-      const interval = 60_000 / bpm;
-      nextTickRef.current += interval;
-      const delay = Math.max(0, nextTickRef.current - Date.now());
-      timerRef.current = setTimeout(tick, delay);
-    }
-    // First tick immediately
-    tick();
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = null;
-    };
-  }, [running, bpm, sig.beats, pulseAnim]);
+    if (!running) setBeatIdx(0);
+  }, [running]);
 
   function bumpBpm(delta: number) {
     setBpm(b => Math.max(BPM_MIN, Math.min(BPM_MAX, b + delta)));

@@ -69,7 +69,8 @@
           "iosUserTrackingPermission": "Allowing tracking lets us see if our Facebook and Instagram ads brought you here, so we can improve them."
         }
       ],
-      "expo-tracking-transparency"
+      "expo-tracking-transparency",
+      "react-native-audio-api"
     ],
     "scheme": "keytionary",
     "experiments": {
